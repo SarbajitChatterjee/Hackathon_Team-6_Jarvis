@@ -1,0 +1,217 @@
+{
+  "name": "Team6-Jarvis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-update-hook",
+        "options": {}
+      },
+      "id": "e3b6a9e1-2f3b-4d5e-8f9a-1b2c3d4e5f6g",
+      "name": "Supabase Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [460, 240],
+      "webhookId": "agent-update-hook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT agent_type, status FROM raw_agent_outputs WHERE batch_id = '{{ $json.body.record.batch_id }}';"
+      },
+      "id": "a1b2c3d4-e5f6-4g7h-8i9j-0k1l2m3n4o5p",
+      "name": "Check Batch Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 240],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "items = [i.json for i in _input.all()]\n\n# Define the required agents\nrequired_agents = {'patentData', 'Bloomberg', 'AnnualStatements_C', 'AnnualStatements_I'}\n\n# Get sets of finished agents in this batch\nfinished_agents = {item['agent_type'] for item in items if item['status'] == 'FINISHED'}\n\n# Check if all required agents are present\nis_ready = required_agents.issubset(finished_agents)\n\nreturn [{'json': {'ready_for_synthesis': is_ready, 'missing': list(required_agents - finished_agents)}}]"
+      },
+      "id": "b2c3d4e5-f6g7-4h8i-9j0k-1l2m3n4o5p6q",
+      "name": "Verify Completion (Python)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.ready_for_synthesis }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "c3d4e5f6-g7h8-4i9j-0k1l-2m3n4o5p6q7r",
+      "name": "Is Batch Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT agent_type, payload FROM raw_agent_outputs WHERE batch_id = '{{ $('Supabase Webhook').item.json.body.record.batch_id }}' AND status = 'FINISHED';"
+      },
+      "id": "fetch-all-outputs",
+      "name": "Fetch All Agent Outputs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1340, 100],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign1",
+              "name": "final_insight",
+              "value": "This is a MOCK Insight: The company shows strong R&D growth (Patent Data) aligned with positive market sentiment (Bloomberg), despite mixed annual results.",
+              "type": "string"
+            },
+            {
+              "id": "assign2",
+              "name": "batch_id",
+              "value": "={{ $('Supabase Webhook').item.json.body.record.batch_id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign3",
+              "name": "structured_data",
+              "value": "={\"risk_score\": 85, \"growth_index\": 4.2}",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "mock-master-ai",
+      "name": "Master AI (Mock GPT-5.2)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1560, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO master_insights (batch_id, insight_summary, structured_data) VALUES ('{{ $json.batch_id }}', '{{ $json.final_insight }}', '{{ JSON.stringify($json.structured_data) }}'::jsonb);"
+      },
+      "id": "save-final-insight",
+      "name": "Save to Master Insights",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1780, 100],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "e5f6g7h8-i9j0-4k1l-2m3n-4o5p6q7r8s9t",
+      "name": "WAITING FOR OTHERS",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 380]
+    }
+  ],
+  "connections": {
+    "Supabase Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Batch Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Batch Status": {
+      "main": [
+        [
+          {
+            "node": "Verify Completion (Python)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Completion (Python)": {
+      "main": [
+        [
+          {
+            "node": "Is Batch Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Batch Complete?": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WAITING FOR OTHERS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All Agent Outputs": {
+      "main": [
+        [
+          {
+            "node": "Master AI (Mock GPT-5.2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Master AI (Mock GPT-5.2)": {
+      "main": [
+        [
+          {
+            "node": "Save to Master Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "tags": []
+}
