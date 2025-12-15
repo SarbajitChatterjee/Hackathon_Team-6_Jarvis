@@ -48,3 +48,6 @@ n8n-local-backup/
 # --- IDEs ---
 .vscode/
 .idea/
+
+# --- etc ---
+Git_save.sh

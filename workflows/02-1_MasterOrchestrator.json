@@ -1,5 +1,5 @@
 {
-  "name": "Team6-Jarvis",
+  "name": "Team6-Jarvis_Master-LLM",
   "nodes": [
     {
       "parameters": {
@@ -34,7 +34,7 @@
     {
       "parameters": {
         "language": "python",
-        "pythonCode": "items = [i.json for i in _input.all()]\n\n# Define the required agents\nrequired_agents = {'patentData', 'Bloomberg', 'AnnualStatements_C', 'AnnualStatements_I'}\n\n# Get sets of finished agents in this batch\nfinished_agents = {item['agent_type'] for item in items if item['status'] == 'FINISHED'}\n\n# Check if all required agents are present\nis_ready = required_agents.issubset(finished_agents)\n\nreturn [{'json': {'ready_for_synthesis': is_ready, 'missing': list(required_agents - finished_agents)}}]"
+        "pythonCode": "items = [i.json for i in _input.all()]# Define the required agents\nrequired_agents = {'patentData', 'Bloomberg', 'AnnualStatements_C', 'AnnualStatements_I'}# Get sets of finished agents in this batch\nfinished_agents = {item['agent_type'] for item in items if item['status'] == 'FINISHED'}# Check if all required agents are present\nis_ready = required_agents.issubset(finished_agents)return [{'json': {'ready_for_synthesis': is_ready, 'missing': list(required_agents - finished_agents)}}]"
       },
       "id": "b2c3d4e5-f6g7-4h8i-9j0k-1l2m3n4o5p6q",
       "name": "Verify Completion (Python)",

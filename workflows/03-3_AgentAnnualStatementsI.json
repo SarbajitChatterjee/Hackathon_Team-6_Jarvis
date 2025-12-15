@@ -1,0 +1,121 @@
+{
+  "name": "Team6-Jarvis_Agent-AnnStatI",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "start-annualstatements-i-agent",
+        "options": {}
+      },
+      "id": "webhook-trigger-annual-i",
+      "name": "Start Agent Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [460, 240],
+      "webhookId": "start-annualstatements-i-agent"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign1",
+              "name": "batch_id",
+              "value": "={{ $json.body.batch_id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign2",
+              "name": "agent_type",
+              "value": "AnnualStatements_I",
+              "type": "string"
+            },
+            {
+              "id": "assign3",
+              "name": "status",
+              "value": "FINISHED",
+              "type": "string"
+            },
+            {
+              "id": "assign4",
+              "name": "payload",
+              "value": "={\"analysis\": \"Industry comparison (2024): Company outperforms sector average by 12%. Market share increased to 18% from 15%. Industry growth rate: 8% vs company growth: 18%.\", \"market_share\": 0.18, \"industry_growth\": 0.08, \"company_vs_industry\": 0.12, \"sector\": \"Technology\", \"year\": 2024}",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "mock-llm-annual-i",
+      "name": "Mock AI Analysis",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "raw_agent_outputs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "batch_id": "={{ $json.batch_id }}",
+            "agent_type": "={{ $json.agent_type }}",
+            "status": "={{ $json.status }}",
+            "payload": "={{ $json.payload }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "save-to-supabase-annual-i",
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [900, 240],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start Agent Webhook": {
+      "main": [
+        [
+          {
+            "node": "Mock AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "tags": []
+}

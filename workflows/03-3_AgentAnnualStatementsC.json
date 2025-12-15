@@ -1,0 +1,121 @@
+{
+  "name": "Team6-Jarvis_Agent-AnnStatC",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "start-annualstatements-c-agent",
+        "options": {}
+      },
+      "id": "webhook-trigger-annual-c",
+      "name": "Start Agent Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [460, 240],
+      "webhookId": "start-annualstatements-c-agent"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign1",
+              "name": "batch_id",
+              "value": "={{ $json.body.batch_id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign2",
+              "name": "agent_type",
+              "value": "AnnualStatements_C",
+              "type": "string"
+            },
+            {
+              "id": "assign3",
+              "name": "status",
+              "value": "FINISHED",
+              "type": "string"
+            },
+            {
+              "id": "assign4",
+              "name": "payload",
+              "value": "={\"analysis\": \"Current year (2024) annual statements show revenue of $2.5B, representing 18% increase. Operating margin improved to 32%. Strong cash position with $800M in reserves.\", \"revenue\": 2500000000, \"revenue_growth\": 0.18, \"operating_margin\": 0.32, \"cash_reserves\": 800000000, \"year\": 2024}",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "mock-llm-annual-c",
+      "name": "Mock AI Analysis",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "raw_agent_outputs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "batch_id": "={{ $json.batch_id }}",
+            "agent_type": "={{ $json.agent_type }}",
+            "status": "={{ $json.status }}",
+            "payload": "={{ $json.payload }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "save-to-supabase-annual-c",
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [900, 240],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start Agent Webhook": {
+      "main": [
+        [
+          {
+            "node": "Mock AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "tags": []
+}

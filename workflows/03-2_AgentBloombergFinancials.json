@@ -1,0 +1,121 @@
+{
+  "name": "Team6-Jarvis_Agent-BF",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "start-bloomberg-agent",
+        "options": {}
+      },
+      "id": "webhook-trigger-bloomberg",
+      "name": "Start Agent Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [460, 240],
+      "webhookId": "start-bloomberg-agent"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign1",
+              "name": "batch_id",
+              "value": "={{ $json.body.batch_id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign2",
+              "name": "agent_type",
+              "value": "Bloomberg",
+              "type": "string"
+            },
+            {
+              "id": "assign3",
+              "name": "status",
+              "value": "FINISHED",
+              "type": "string"
+            },
+            {
+              "id": "assign4",
+              "name": "payload",
+              "value": "={\"analysis\": \"Bloomberg sentiment analysis shows positive market outlook. Stock performance indicates 23% growth YoY. Analyst rating: Strong Buy with target price $450.\", \"sentiment_score\": 0.85, \"analyst_rating\": \"Strong Buy\", \"target_price\": 450, \"yoy_growth\": 0.23}",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "mock-llm-bloomberg",
+      "name": "Mock AI Analysis",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "raw_agent_outputs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "batch_id": "={{ $json.batch_id }}",
+            "agent_type": "={{ $json.agent_type }}",
+            "status": "={{ $json.status }}",
+            "payload": "={{ $json.payload }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "save-to-supabase-bloomberg",
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [900, 240],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start Agent Webhook": {
+      "main": [
+        [
+          {
+            "node": "Mock AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "tags": []
+}
