@@ -51,3 +51,4 @@ n8n-local-backup/
 
 # --- etc ---
 Git_save.sh
+scripts/
