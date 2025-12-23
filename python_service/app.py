@@ -1,133 +1,150 @@
-import os
-import io
-import uuid
-from datetime import datetime
-from typing import List, Optional
+from __future__ import annotations
 
-import pandas as pd
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from yahoo_fin import stock_info as si
+from typing import List, Optional, Literal
+from datetime import datetime
+import pandas as pd
+import time
 
-app = FastAPI(title="Jarvis YahooFin Service")
+from yahoo_fin.stock_info import get_data  # yahoo_fin
 
-ALLOWED_INTERVALS = {"1d", "1wk", "1mo"}
-
-DEFAULT_COLUMNS = ["open", "high", "low", "close", "adjclose", "volume"]
+app = FastAPI(title="Market Data Service", version="0.1")
 
 
-def _to_mmddyyyy(date_str: Optional[str]) -> Optional[str]:
+class PortfolioRequest(BaseModel):
+    batch_id: Optional[str] = Field(default=None, description="Same batch_id used across the portfolio run")
+    portfolio_id: Optional[str] = Field(default=None, description="Optional portfolio identifier")
+    tickers: List[str] = Field(..., min_length=1, description="Variable length: 5, 10, 15... all allowed")
+    start_date: str = Field(..., description="ISO (YYYY-MM-DD) or mm/dd/yyyy")
+    end_date: str = Field(..., description="ISO (YYYY-MM-DD) or mm/dd/yyyy")
+    interval: Literal["1d", "1wk", "1mo"] = "1d"
+
+    # Output controls
+    use_adjclose_as_close: bool = True
+    include_adjclose_column: bool = True
+    include_returns: bool = True
+
+    # Safety controls
+    max_tickers: int = 50
+    sleep_seconds: float = 0.2  # gentle throttling
+    strict: bool = True         # if True: fail request when any ticker fails
+
+
+def _to_mmddyyyy(s: str) -> str:
     """
-    yahoo_fin's get_data commonly expects mm/dd/yyyy for start_date/end_date.
-    We accept ISO yyyy-mm-dd and convert for safety.
+    yahoo_fin examples commonly use mm/dd/yyyy for start_date/end_date. :contentReference[oaicite:2]{index=2}
+    Accept ISO too, and convert.
     """
-    if not date_str:
-        return None
-    try:
-        dt = datetime.strptime(date_str, "%Y-%m-%d")
-        return dt.strftime("%m/%d/%Y")
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid date format '{date_str}'. Use YYYY-MM-DD."
-        ) from e
+    s = s.strip()
+    if "/" in s:
+        return s  # assume mm/dd/yyyy already
+    # assume ISO
+    dt = datetime.fromisoformat(s)
+    return dt.strftime("%m/%d/%Y")
 
 
-def _require_api_key(x_api_key: Optional[str]) -> None:
-    expected = os.getenv("SERVICE_API_KEY")
-    if expected and x_api_key != expected:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+def _fetch_one(ticker: str, start_mmddyyyy: str, end_mmddyyyy: str, interval: str) -> pd.DataFrame:
+    # yahoo_fin returns OHLC + adjclose + volume columns internally :contentReference[oaicite:3]{index=3}
+    df = get_data(
+        ticker,
+        start_date=start_mmddyyyy,
+        end_date=end_mmddyyyy,
+        index_as_date=True,
+        interval=interval,
+    )
+
+    if df is None or df.empty:
+        raise ValueError("No data returned")
+
+    # Ensure we have the expected columns
+    expected = {"open", "high", "low", "close", "adjclose", "volume"}
+    missing = expected - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing columns: {sorted(missing)}")
+
+    df = df.reset_index().rename(columns={"index": "datetime"})
+    df["ticker"] = ticker.upper()
+
+    # Backtrader standard lines: datetime, open, high, low, close, volume, openinterest :contentReference[oaicite:4]{index=4}
+    if df["datetime"].dtype != "datetime64[ns]":
+        df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+
+    df["datetime"] = df["datetime"].dt.strftime("%Y-%m-%d")
+    df["openinterest"] = 0
+
+    return df
 
 
-class PortfolioCsvRequest(BaseModel):
-    portfolio_id: str = Field(..., min_length=1)
-    batch_id: Optional[str] = None
-    tickers: List[str] = Field(..., min_length=1)
-    start_date: Optional[str] = None  # YYYY-MM-DD
-    end_date: Optional[str] = None    # YYYY-MM-DD
-    interval: str = "1d"
-    columns: Optional[List[str]] = None  # e.g. ["close","volume"]
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
-@app.post("/portfolio/csv")
-def portfolio_csv(req: PortfolioCsvRequest, x_api_key: Optional[str] = Header(default=None)):
-    _require_api_key(x_api_key)
-
-    interval = req.interval.strip()
-    if interval not in ALLOWED_INTERVALS:
-        raise HTTPException(status_code=400, detail=f"interval must be one of {sorted(ALLOWED_INTERVALS)}")
-
-    batch_id = (req.batch_id or str(uuid.uuid4())).strip()
-    portfolio_id = req.portfolio_id.strip()
-
-    # Normalise tickers
-    tickers = [t.strip() for t in req.tickers if t and t.strip()]
+@app.post("/portfolio/ohlcv.csv")
+def portfolio_ohlcv(req: PortfolioRequest):
+    # ---- Where “5 vs 10 vs 15 tickers” is handled ----
+    tickers = [t.strip().upper() for t in req.tickers if t and t.strip()]
     if not tickers:
-        raise HTTPException(status_code=400, detail="tickers must contain at least 1 non-empty ticker")
+        raise HTTPException(status_code=400, detail="tickers must contain at least 1 valid symbol")
 
-    # Columns
-    wanted_cols = req.columns or DEFAULT_COLUMNS
-    wanted_cols = [c.strip().lower() for c in wanted_cols if c and c.strip()]
-    if not wanted_cols:
-        raise HTTPException(status_code=400, detail="columns must contain at least 1 column name")
+    if len(tickers) > req.max_tickers:
+        raise HTTPException(status_code=400, detail=f"Too many tickers. Max allowed = {req.max_tickers}")
 
-    start_mmdd = _to_mmddyyyy(req.start_date)
-    end_mmdd = _to_mmddyyyy(req.end_date)
+    start_mmddyyyy = _to_mmddyyyy(req.start_date)
+    end_mmddyyyy = _to_mmddyyyy(req.end_date)
 
     frames = []
-    for t in tickers:
+    failed = []
+
+    for ticker in tickers:
         try:
-            df = si.get_data(
-                t,
-                start_date=start_mmdd,
-                end_date=end_mmdd,
-                index_as_date=True,
-                interval=interval,
-            )
+            frames.append(_fetch_one(ticker, start_mmddyyyy, end_mmddyyyy, req.interval))
         except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Failed fetching ticker '{t}': {str(e)}") from e
+            failed.append((ticker, str(e)))
+            if req.strict:
+                raise HTTPException(status_code=502, detail=f"Failed to fetch {ticker}: {e}")
+        finally:
+            if req.sleep_seconds and req.sleep_seconds > 0:
+                time.sleep(req.sleep_seconds)
 
-        if df is None or df.empty:
-            raise HTTPException(status_code=502, detail=f"No data returned for ticker '{t}'")
+    if not frames:
+        raise HTTPException(status_code=502, detail=f"All tickers failed: {failed}")
 
-        # Make sure we have a 'date' column
-        df = df.reset_index()
-        if "index" in df.columns and "date" not in df.columns:
-            df = df.rename(columns={"index": "date"})
+    df = pd.concat(frames, ignore_index=True)
 
-        # Add ticker column so rows can be merged safely
-        df["ticker"] = t
+    # Choose close series
+    if req.use_adjclose_as_close:
+        df["close"] = df["adjclose"]
 
-        # Select only requested columns that actually exist
-        available = set(df.columns.str.lower())
-        # Map lower -> actual for safe selection
-        lower_to_actual = {c.lower(): c for c in df.columns}
+    # Optional returns (per ticker)
+    if req.include_returns:
+        df["ret"] = df.groupby("ticker")["close"].pct_change()
 
-        keep = ["date", "ticker"]
-        for c in wanted_cols:
-            if c in available:
-                keep.append(lower_to_actual[c])
+    # Column set for MVP: Backtrader + ticker (+ optional extras)
+    cols = ["datetime", "ticker", "open", "high", "low", "close", "volume", "openinterest"]
+    if req.include_adjclose_column:
+        cols.insert(cols.index("close") + 1, "adjclose")
+    if req.include_returns:
+        cols.append("ret")
 
-        out = df[keep].copy()
-        frames.append(out)
+    df = df[cols].sort_values(["ticker", "datetime"])
 
-    merged = pd.concat(frames, ignore_index=True)
+    # Add batch/portfolio fields if you want them inside the CSV (handy for DB traceability)
+    if req.batch_id:
+        df.insert(0, "batch_id", req.batch_id)
+    if req.portfolio_id:
+        df.insert(1 if req.batch_id else 0, "portfolio_id", req.portfolio_id)
 
-    # Sort for readability (date then ticker)
-    if "date" in merged.columns:
-        merged = merged.sort_values(by=["date", "ticker"], kind="mergesort")
+    csv_bytes = df.to_csv(index=False).encode("utf-8")
 
-    # Output CSV (single file for whole portfolio run)
-    buf = io.StringIO()
-    merged.to_csv(buf, index=False)
-    buf.seek(0)
-
-    filename = f"portfolio_{portfolio_id}_batch_{batch_id}.csv"
+    filename = f"portfolio_{req.batch_id or 'no_batch'}_{req.interval}.csv"
     headers = {
-        "Content-Disposition": f'attachment; filename="{filename}"',
-        "X-Batch-Id": batch_id,
-        "X-Portfolio-Id": portfolio_id,
+        "Content-Disposition": f'attachment; filename="{filename}"'
     }
+    # (Optional) expose failures as header (useful if strict=False)
+    if failed:
+        headers["X-Failed-Tickers"] = ",".join([t for t, _ in failed])
 
-    return StreamingResponse(buf, media_type="text/csv", headers=headers)
+    return Response(content=csv_bytes, media_type="text/csv", headers=headers)
