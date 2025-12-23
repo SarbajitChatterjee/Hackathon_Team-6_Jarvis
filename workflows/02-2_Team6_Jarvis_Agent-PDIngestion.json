@@ -1,0 +1,139 @@
+{
+  "name": "Team6_Jarvis_Agent-PDIngestion",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO track_requests (ticker, status) VALUES ('MOCK-PATENT', 'PROCESSING') RETURNING request_id;"
+      },
+      "id": "create-parent",
+      "name": "Create Parent Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign1",
+              "name": "request_id",
+              "value": "={{ $('Create Parent Request').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign2",
+              "name": "ticker",
+              "value": "MOCK-PATENT",
+              "type": "string"
+            },
+            {
+              "id": "assign3",
+              "name": "patent_count",
+              "value": 12,
+              "type": "number"
+            },
+            {
+              "id": "assign4",
+              "name": "summary_payload",
+              "value": "={ \"innovation_score\": 8.5, \"key_patents\": [\"Generative AI Transformer\", \"Neural Network Optimization\"], \"legal_risk\": \"Low\" }",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "mock-ai",
+      "name": "Mock AI (Structure Data)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "patent_data"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $json.request_id }}",
+            "ticker": "={{ $json.ticker }}",
+            "patent_count": "={{ $json.patent_count }}",
+            "summary_payload": "={{ $json.summary_payload }}"
+          }
+        }
+      },
+      "id": "save-patent",
+      "name": "Save to PatentDB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1120, 300],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Parent Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Parent Request": {
+      "main": [
+        [
+          {
+            "node": "Mock AI (Structure Data)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock AI (Structure Data)": {
+      "main": [
+        [
+          {
+            "node": "Save to PatentDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

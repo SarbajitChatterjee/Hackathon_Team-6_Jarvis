@@ -1,0 +1,98 @@
+{
+  "name": "Team6_Jarvis_Agent-FDIngestion",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [460, 460]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO track_requests (ticker, status) VALUES ('SAP.DE', 'PROCESSING') RETURNING request_id;"
+      },
+      "id": "create-parent-fin",
+      "name": "Create Parent Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 460]
+    },
+    {
+      "parameters": {
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/SAP.DE?interval=1d&range=1mo",
+        "options": {}
+      },
+      "id": "fetch-yahoo",
+      "name": "Fetch Yahoo Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 460]
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "code": "import json\n\n# 1. Get the input data (Raw Yahoo JSON)\ninput_data = _input.item.json\n\n# 2. Extract Timestamps and Prices\n# Yahoo structure: chart -> result -> [0] -> timestamp / indicators -> quote\ntry:\n    result = input_data['chart']['result'][0]\n    timestamps = result['timestamp']\n    closes = result['indicators']['quote'][0]['close']\n    \n    # 3. Clean: Pair them up, filtering out nulls\n    ohlcv_clean = []\n    for t, c in zip(timestamps, closes):\n        if c is not None:\n            ohlcv_clean.append({\"timestamp\": t, \"close\": round(c, 2)})\n            \n    # 4. Return structured object\n    return [{\n        \"request_id\": $('Create Parent Request').item.json['request_id'],\n        \"ticker\": \"SAP.DE\",\n        \"raw_ohlcv\": ohlcv_clean\n    }]\nexcept Exception as e:\n    return [{\"error\": str(e)}]"
+      },
+      "id": "python-clean",
+      "name": "Python - Data Cleaning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 460]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ticker_data"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $json.request_id }}",
+            "ticker": "={{ $json.ticker }}",
+            "raw_ohlcv": "={{ JSON.stringify($json.raw_ohlcv) }}"
+          }
+        }
+      },
+      "id": "save-ticker",
+      "name": "Save to TickerDB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1340, 460]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Parent Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Parent Request": {
+      "main": [
+        [
+          {
+            "node": "Fetch Yahoo Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Yahoo Data": {
+      "main
