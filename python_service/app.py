@@ -12,6 +12,8 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+from fastapi.encoders import jsonable_encoder
+
 # Optional (kept for future / fallback)
 try:
     from yahoo_fin.stock_info import get_data as yahoo_fin_get_data
@@ -370,3 +372,76 @@ def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header
         headers["X-Data-Sources"] = ",".join(sorted(set(sources_used)))
 
     return Response(content=csv_bytes, media_type="text/csv", headers=headers)
+
+@app.post("/portfolio/json")
+def portfolio_json(req: PortfolioRequest, x_api_key: Optional[str] = Header(default=None)):
+    """
+    Returns data grouped by ticker, specifically for Supabase 'ticker_data' ingestion.
+    Output: [{ "ticker": "SAP.DE", "raw_ohlcv": [...], "request_id": "..." }]
+    """
+    _require_api_key(x_api_key)
+    
+    # 1. Reuse the existing CSV logic to fetch and clean data
+    # (We temporarily invoke the internal logic or copy-paste the fetch loop here. 
+    # For a clean code structure, ideally, you extract the fetching loop into a strictly internal function `_get_data_frame`
+    # but for now, we can duplicate the fetch logic or refactor slightly.)
+    
+    # --- REFACTOR START: Minimal Fetch Logic Copy (Safe for your current file) ---
+    tickers = [t.strip().upper() for t in req.tickers if t and t.strip()]
+    frames = []
+    
+    for t in tickers:
+        try:
+            # Trigger the same internal fetch functions you already have
+            if req.fetch_mode == "chart":
+                res = _fetch_chart(t, req.start_date, req.end_date, req.interval, req.retries, req.backoff_base_seconds)
+            elif req.fetch_mode == "yahoo_fin":
+                res = _fetch_yahoo_fin(t, req.start_date, req.end_date, req.interval)
+            else:
+                try:
+                    res = _fetch_yahoo_fin(t, req.start_date, req.end_date, req.interval)
+                except:
+                    res = _fetch_chart(t, req.start_date, req.end_date, req.interval, req.retries, req.backoff_base_seconds)
+            
+            df = res.df.copy()
+            frames.append(df)
+        except Exception as e:
+            print(f"Error fetching {t}: {e}") # Log it, but continue
+            continue
+            
+    if not frames:
+         raise HTTPException(status_code=502, detail="All tickers failed.")
+         
+    merged = pd.concat(frames, ignore_index=True)
+    # --- REFACTOR END ---
+
+    # 2. Transform to "Database Ready" JSON
+    output_list = []
+    
+    # Group by ticker so we get one row per company
+    # for ticker, group in merged.groupby("ticker"):
+    for ticker, group in merged.groupby("ticker"):
+        # Select only the columns we want in the JSON blob
+        # Convert date to string to be safe for JSON
+        # records = group[["datetime", "open", "high", "low", "close", "volume"]].to_dict(orient="records")
+        
+        # output_list.append({
+        #     "ticker": ticker,
+        #     "raw_ohlcv": records,
+        #     "batch_id": req.batch_id
+        # })
+        # FIX: Replace Infinity AND NaN with None (which becomes valid JSON 'null')
+        # We replace inf/-inf with NaN first, then replace all NaNs with None
+        clean_group = group.replace([float('inf'), float('-inf')], float('nan'))
+        clean_group = clean_group.where(pd.notnull(clean_group), None)
+
+        # Select columns and convert using the CLEAN dataframe
+        records = clean_group[["datetime", "open", "high", "low", "close", "volume"]].to_dict(orient="records")
+        
+        output_list.append({
+            "ticker": ticker,
+            "raw_ohlcv": records,
+            "batch_id": req.batch_id
+        })
+
+    return output_list

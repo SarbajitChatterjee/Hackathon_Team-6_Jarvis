@@ -3,96 +3,123 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "trigger",
-      "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [460, 460]
+      "position": [
+        0,
+        0
+      ],
+      "id": "3ef6878c-ed4b-4b26-aaa3-626d5694857c",
+      "name": "When clicking ‘Execute workflow’"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO track_requests (ticker, status) VALUES ('SAP.DE', 'PROCESSING') RETURNING request_id;"
-      },
-      "id": "create-parent-fin",
-      "name": "Create Parent Request",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [680, 460]
-    },
-    {
-      "parameters": {
-        "url": "https://query1.finance.yahoo.com/v8/finance/chart/SAP.DE?interval=1d&range=1mo",
+        "query": "INSERT INTO track_requests (ticker, status) \nVALUES ('Port8', 'PROCESSING') \nRETURNING request_id;",
         "options": {}
       },
-      "id": "fetch-yahoo",
-      "name": "Fetch Yahoo Data",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [900, 460]
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "fc72af47-1ebb-47e9-99ea-67b47dc4c130",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
     },
     {
       "parameters": {
-        "language": "python",
-        "code": "import json\n\n# 1. Get the input data (Raw Yahoo JSON)\ninput_data = _input.item.json\n\n# 2. Extract Timestamps and Prices\n# Yahoo structure: chart -> result -> [0] -> timestamp / indicators -> quote\ntry:\n    result = input_data['chart']['result'][0]\n    timestamps = result['timestamp']\n    closes = result['indicators']['quote'][0]['close']\n    \n    # 3. Clean: Pair them up, filtering out nulls\n    ohlcv_clean = []\n    for t, c in zip(timestamps, closes):\n        if c is not None:\n            ohlcv_clean.append({\"timestamp\": t, \"close\": round(c, 2)})\n            \n    # 4. Return structured object\n    return [{\n        \"request_id\": $('Create Parent Request').item.json['request_id'],\n        \"ticker\": \"SAP.DE\",\n        \"raw_ohlcv\": ohlcv_clean\n    }]\nexcept Exception as e:\n    return [{\"error\": str(e)}]"
+        "method": "POST",
+        "url": "=http://13.60.49.89:8000/portfolio/json",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tickers\": [\"CROX\", \"URBN\", \"YETI\", \"BOOT\", \"SHAK\"],\n  \"start_date\": \"2023-01-01\",\n  \"end_date\": \"2025-12-24\",\n  \"interval\": \"1d\",\n  \"batch_id\": \"{{ $('Execute a SQL query').item.json.request_id }}\",\n  \"fetch_mode\": \"chart\"\n}",
+        "options": {}
       },
-      "id": "python-clean",
-      "name": "Python - Data Cleaning",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1120, 460]
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "935c51fe-1324-4c9d-94e3-19784f2816f3",
+      "name": "HTTP Request"
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": {
-          "__rl": true,
-          "mode": "list",
-          "value": "public"
-        },
-        "table": {
-          "__rl": true,
-          "mode": "list",
-          "value": "ticker_data"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "request_id": "={{ $json.request_id }}",
-            "ticker": "={{ $json.ticker }}",
-            "raw_ohlcv": "={{ JSON.stringify($json.raw_ohlcv) }}"
-          }
+        "operation": "executeQuery",
+        "query": "INSERT INTO ticker_data (request_id, ticker, raw_ohlcv)\nVALUES ($1, $2, $3::jsonb)",
+        "options": {
+          "queryReplacement": "={{ $json.batch_id }}, {{ $json.ticker }}, {{ JSON.stringify($json.raw_ohlcv) }}"
         }
       },
-      "id": "save-ticker",
-      "name": "Save to TickerDB",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [1340, 460]
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        0
+      ],
+      "id": "3f1689c1-a96b-44e3-a1f1-7811ae80bd1c",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
+  "pinData": {},
   "connections": {
-    "Manual Trigger": {
+    "When clicking ‘Execute workflow’": {
       "main": [
         [
           {
-            "node": "Create Parent Request",
+            "node": "Execute a SQL query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Parent Request": {
+    "Execute a SQL query": {
       "main": [
         [
           {
-            "node": "Fetch Yahoo Data",
+            "node": "HTTP Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Yahoo Data": {
-      "main
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5a513680-ef44-494b-aa1d-39bee5c0fb63",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"
+  },
+  "id": "yh9l1XsrDKEhz1Ky",
+  "tags": []
+}
