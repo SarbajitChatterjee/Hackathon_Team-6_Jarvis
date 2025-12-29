@@ -1,3 +1,5 @@
+# Used for fetching from yahoo-fin and yfinance
+
 from __future__ import annotations
 
 import time
@@ -13,6 +15,8 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from fastapi.encoders import jsonable_encoder
+
+import yfinance as yf
 
 # Optional (kept for future / fallback)
 try:
@@ -62,6 +66,13 @@ class PortfolioRequest(BaseModel):
     retries: int = 3
     backoff_base_seconds: float = 0.5
 
+# New Modal class
+class ResolveRequest(BaseModel):
+    ticker: str
+
+class CompanyNameResponse(BaseModel):
+    ticker: str
+    company_name: str
 
 def _require_api_key(x_api_key: Optional[str]) -> None:
     """
@@ -445,3 +456,42 @@ def portfolio_json(req: PortfolioRequest, x_api_key: Optional[str] = Header(defa
         })
 
     return output_list
+
+# New endpoint to find company legal name
+@app.post("/company/name", response_model=CompanyNameResponse)
+def resolve_company_profile(req: ResolveRequest, x_api_key: Optional[str] = Header(default=None)):
+    """
+    Resolves 'AAPL' -> 'Apple Inc.' using Yahoo's Search API.
+    """
+    _require_api_key(x_api_key)
+    
+    ticker = req.ticker.strip().upper()
+    
+    # 1. Try Yahoo Finance Search API (Very reliable)
+    try:
+        url = "https://query2.finance.yahoo.com/v1/finance/search"
+        params = {"q": ticker, "quotesCount": 1, "newsCount": 0}
+        headers = {"User-Agent": "Mozilla/5.0"}
+        
+        # 'requests' is blocking, so we use standard 'def'
+        resp = requests.get(url, params=params, headers=headers, timeout=5)
+        data = resp.json()
+        
+        if "quotes" in data and len(data["quotes"]) > 0:
+            best_match = data["quotes"][0]
+            # Prefer longname ('Apple Inc.'), fallback to shortname ('Apple')
+            company_name = best_match.get("longname") or best_match.get("shortname") or ticker
+            
+            return {
+                "ticker": ticker,
+                "company_name": company_name
+            }
+            
+    except Exception as e:
+        print(f"Search API failed for {ticker}: {e}")
+
+    # 2. Fallback
+    return {
+        "ticker": ticker,
+        "company_name": ticker 
+    }

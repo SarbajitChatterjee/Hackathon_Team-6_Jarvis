@@ -25,31 +25,13 @@
         0
       ],
       "id": "fc72af47-1ebb-47e9-99ea-67b47dc4c130",
-      "name": "Execute a SQL query",
+      "name": "create Request in track_requests DB",
       "credentials": {
         "postgres": {
           "id": "0xg47XH7w5CugSut",
           "name": "Postgres account"
         }
       }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=http://13.60.49.89:8000/portfolio/json",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"tickers\": [\"CROX\", \"URBN\", \"YETI\", \"BOOT\", \"SHAK\"],\n  \"start_date\": \"2023-01-01\",\n  \"end_date\": \"2025-12-24\",\n  \"interval\": \"1d\",\n  \"batch_id\": \"{{ $('Execute a SQL query').item.json.request_id }}\",\n  \"fetch_mode\": \"chart\"\n}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        416,
-        0
-      ],
-      "id": "935c51fe-1324-4c9d-94e3-19784f2816f3",
-      "name": "HTTP Request"
     },
     {
       "parameters": {
@@ -66,13 +48,31 @@
         0
       ],
       "id": "3f1689c1-a96b-44e3-a1f1-7811ae80bd1c",
-      "name": "Execute a SQL query1",
+      "name": "Write data in ticker_data DB",
       "credentials": {
         "postgres": {
           "id": "0xg47XH7w5CugSut",
           "name": "Postgres account"
         }
       }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://13.60.49.89:8000/portfolio/json",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tickers\": [\"CROX\", \"URBN\", \"YETI\", \"BOOT\", \"SHAK\"],\n  \"start_date\": \"2023-01-01\",\n  \"end_date\": \"2025-12-24\",\n  \"interval\": \"1d\",\n  \"batch_id\": \"{{ $('create Request in track_requests DB').item.json.request_id }}\",\n  \"fetch_mode\": \"chart\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "935c51fe-1324-4c9d-94e3-19784f2816f3",
+      "name": "AWS=python to fetch data from yfinance"
     }
   ],
   "pinData": {},
@@ -81,29 +81,29 @@
       "main": [
         [
           {
-            "node": "Execute a SQL query",
+            "node": "create Request in track_requests DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute a SQL query": {
+    "create Request in track_requests DB": {
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "AWS=python to fetch data from yfinance",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP Request": {
+    "AWS=python to fetch data from yfinance": {
       "main": [
         [
           {
-            "node": "Execute a SQL query1",
+            "node": "Write data in ticker_data DB",
             "type": "main",
             "index": 0
           }
@@ -115,7 +115,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "5a513680-ef44-494b-aa1d-39bee5c0fb63",
+  "versionId": "cd8492d7-e013-4fe0-8799-6c6282e0bcaf",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"
