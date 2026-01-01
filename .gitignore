@@ -38,6 +38,7 @@ venv.bak/
 .env.test.local
 .env.production.local
 *.env
+sarbajit-team6.pem
 
 # --- n8n ---
 # If running n8n locally via npm/Docker mapping
