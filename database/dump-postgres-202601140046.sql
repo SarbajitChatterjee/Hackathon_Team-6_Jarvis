@@ -5,7 +5,7 @@
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.0
 
--- Started on 2026-01-01 23:09:02
+-- Started on 2026-01-14 00:46:36
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -20,6 +20,22 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- TOC entry 30 (class 2615 OID 16624)
+-- Name: graphql; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA graphql;
+
+
+--
+-- TOC entry 29 (class 2615 OID 16613)
+-- Name: graphql_public; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA graphql_public;
+
+
+--
 -- TOC entry 34 (class 2615 OID 2200)
 -- Name: public; Type: SCHEMA; Schema: -; Owner: -
 --
@@ -28,7 +44,7 @@ CREATE SCHEMA public;
 
 
 --
--- TOC entry 4006 (class 0 OID 0)
+-- TOC entry 4032 (class 0 OID 0)
 -- Dependencies: 34
 -- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
 --
@@ -53,7 +69,15 @@ CREATE SCHEMA supabase_functions;
 
 
 --
--- TOC entry 1274 (class 1247 OID 17498)
+-- TOC entry 27 (class 2615 OID 16653)
+-- Name: vault; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA vault;
+
+
+--
+-- TOC entry 1281 (class 1247 OID 17498)
 -- Name: agent_status; Type: TYPE; Schema: public; Owner: -
 --
 
@@ -65,7 +89,7 @@ CREATE TYPE public.agent_status AS ENUM (
 
 
 --
--- TOC entry 1200 (class 1247 OID 16837)
+-- TOC entry 1204 (class 1247 OID 16837)
 -- Name: buckettype; Type: TYPE; Schema: storage; Owner: -
 --
 
@@ -77,7 +101,7 @@ CREATE TYPE storage.buckettype AS ENUM (
 
 
 --
--- TOC entry 538 (class 1255 OID 33442)
+-- TOC entry 542 (class 1255 OID 33442)
 -- Name: check_portfolio_completion(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -85,10 +109,11 @@ CREATE FUNCTION public.check_portfolio_completion() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-  -- Check if both ACTIVE sub-processes are marked as 'finished'
+  -- Check if ALL sub-processes (including the new Modal 2 synthesis) are 'finished'
   IF NEW.fdi_status = 'finished' 
      AND NEW.pdi_status = 'finished'
-     AND NEW.backtesting_status = 'finished'  
+     AND NEW.backtesting_status = 'finished' 
+     AND NEW.modal2_synthesis_status = 'finished' -- Added this condition
      THEN
      
      NEW.portfolio_status := 'finished';
@@ -101,7 +126,7 @@ $$;
 
 
 --
--- TOC entry 518 (class 1255 OID 41165)
+-- TOC entry 522 (class 1255 OID 41165)
 -- Name: check_request_completion(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -125,7 +150,36 @@ $$;
 
 
 --
--- TOC entry 512 (class 1255 OID 43696)
+-- TOC entry 465 (class 1255 OID 55044)
+-- Name: check_ticker_completion(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_ticker_completion() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Update: Now checks ALL 4 STATUSES (Financial, Patent, Backtest, AND FFM)
+    IF NEW.financial_analysis_status = 'complete' AND 
+       NEW.patent_analysis_status = 'complete' AND 
+       NEW.backtest_status = 'complete' AND
+       NEW.ffm_status = 'complete' THEN   -- <--- Added this check
+       
+       -- Mark the main ticker as completed
+       NEW.ticker_status = 'completed';
+       
+       -- Set timestamp if missing
+       IF NEW.completed_at IS NULL THEN
+           NEW.completed_at = NOW();
+       END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- TOC entry 516 (class 1255 OID 43696)
 -- Name: notify_dispatcher(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -144,7 +198,7 @@ $$;
 
 
 --
--- TOC entry 407 (class 1255 OID 43698)
+-- TOC entry 410 (class 1255 OID 43698)
 -- Name: notify_fdi(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -163,7 +217,7 @@ $$;
 
 
 --
--- TOC entry 466 (class 1255 OID 16815)
+-- TOC entry 470 (class 1255 OID 16815)
 -- Name: add_prefixes(text, text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -184,7 +238,7 @@ $$;
 
 
 --
--- TOC entry 482 (class 1255 OID 16741)
+-- TOC entry 486 (class 1255 OID 16741)
 -- Name: can_insert_object(text, text, uuid, jsonb); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -202,7 +256,7 @@ $$;
 
 
 --
--- TOC entry 428 (class 1255 OID 16855)
+-- TOC entry 431 (class 1255 OID 16855)
 -- Name: delete_leaf_prefixes(text[], text[]); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -268,7 +322,7 @@ $$;
 
 
 --
--- TOC entry 505 (class 1255 OID 16816)
+-- TOC entry 509 (class 1255 OID 16816)
 -- Name: delete_prefix(text, text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -305,7 +359,7 @@ $$;
 
 
 --
--- TOC entry 498 (class 1255 OID 16819)
+-- TOC entry 502 (class 1255 OID 16819)
 -- Name: delete_prefix_hierarchy_trigger(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -327,7 +381,7 @@ $$;
 
 
 --
--- TOC entry 515 (class 1255 OID 16834)
+-- TOC entry 519 (class 1255 OID 16834)
 -- Name: enforce_bucket_name_length(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -344,7 +398,7 @@ $$;
 
 
 --
--- TOC entry 463 (class 1255 OID 16715)
+-- TOC entry 467 (class 1255 OID 16715)
 -- Name: extension(text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -363,7 +417,7 @@ $$;
 
 
 --
--- TOC entry 455 (class 1255 OID 16714)
+-- TOC entry 458 (class 1255 OID 16714)
 -- Name: filename(text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -380,7 +434,7 @@ $$;
 
 
 --
--- TOC entry 517 (class 1255 OID 16713)
+-- TOC entry 521 (class 1255 OID 16713)
 -- Name: foldername(text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -399,7 +453,7 @@ $$;
 
 
 --
--- TOC entry 414 (class 1255 OID 16797)
+-- TOC entry 417 (class 1255 OID 16797)
 -- Name: get_level(text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -411,7 +465,7 @@ $$;
 
 
 --
--- TOC entry 430 (class 1255 OID 16813)
+-- TOC entry 433 (class 1255 OID 16813)
 -- Name: get_prefix(text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -428,7 +482,7 @@ $_$;
 
 
 --
--- TOC entry 520 (class 1255 OID 16814)
+-- TOC entry 524 (class 1255 OID 16814)
 -- Name: get_prefixes(text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -456,7 +510,7 @@ $$;
 
 
 --
--- TOC entry 513 (class 1255 OID 16832)
+-- TOC entry 517 (class 1255 OID 16832)
 -- Name: get_size_by_bucket(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -473,7 +527,7 @@ $$;
 
 
 --
--- TOC entry 406 (class 1255 OID 16780)
+-- TOC entry 409 (class 1255 OID 16780)
 -- Name: list_multipart_uploads_with_delimiter(text, text, text, integer, text, text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -520,7 +574,7 @@ $_$;
 
 
 --
--- TOC entry 484 (class 1255 OID 16743)
+-- TOC entry 488 (class 1255 OID 16743)
 -- Name: list_objects_with_delimiter(text, text, text, integer, text, text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -565,7 +619,7 @@ $_$;
 
 
 --
--- TOC entry 541 (class 1255 OID 16854)
+-- TOC entry 545 (class 1255 OID 16854)
 -- Name: lock_top_prefixes(text[], text[]); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -590,7 +644,7 @@ $$;
 
 
 --
--- TOC entry 435 (class 1255 OID 16856)
+-- TOC entry 438 (class 1255 OID 16856)
 -- Name: objects_delete_cleanup(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -622,7 +676,7 @@ $$;
 
 
 --
--- TOC entry 477 (class 1255 OID 16818)
+-- TOC entry 481 (class 1255 OID 16818)
 -- Name: objects_insert_prefix_trigger(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -639,7 +693,7 @@ $$;
 
 
 --
--- TOC entry 493 (class 1255 OID 16857)
+-- TOC entry 497 (class 1255 OID 16857)
 -- Name: objects_update_cleanup(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -732,7 +786,7 @@ $$;
 
 
 --
--- TOC entry 511 (class 1255 OID 16862)
+-- TOC entry 515 (class 1255 OID 16862)
 -- Name: objects_update_level_trigger(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -751,7 +805,7 @@ $$;
 
 
 --
--- TOC entry 465 (class 1255 OID 16833)
+-- TOC entry 469 (class 1255 OID 16833)
 -- Name: objects_update_prefix_trigger(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -794,7 +848,7 @@ $$;
 
 
 --
--- TOC entry 500 (class 1255 OID 16796)
+-- TOC entry 504 (class 1255 OID 16796)
 -- Name: operation(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -808,7 +862,7 @@ $$;
 
 
 --
--- TOC entry 442 (class 1255 OID 16858)
+-- TOC entry 445 (class 1255 OID 16858)
 -- Name: prefixes_delete_cleanup(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -840,7 +894,7 @@ $$;
 
 
 --
--- TOC entry 433 (class 1255 OID 16817)
+-- TOC entry 436 (class 1255 OID 16817)
 -- Name: prefixes_insert_trigger(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -855,7 +909,7 @@ $$;
 
 
 --
--- TOC entry 491 (class 1255 OID 16730)
+-- TOC entry 495 (class 1255 OID 16730)
 -- Name: search(text, text, integer, integer, integer, text, text, text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -880,7 +934,7 @@ $$;
 
 
 --
--- TOC entry 528 (class 1255 OID 16830)
+-- TOC entry 532 (class 1255 OID 16830)
 -- Name: search_legacy_v1(text, text, integer, integer, integer, text, text, text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -950,7 +1004,7 @@ $_$;
 
 
 --
--- TOC entry 489 (class 1255 OID 16829)
+-- TOC entry 493 (class 1255 OID 16829)
 -- Name: search_v1_optimised(text, text, integer, integer, integer, text, text, text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -1019,7 +1073,7 @@ $_$;
 
 
 --
--- TOC entry 524 (class 1255 OID 16853)
+-- TOC entry 528 (class 1255 OID 16853)
 -- Name: search_v2(text, text, integer, integer, text, text, text, text); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -1116,7 +1170,7 @@ $_$;
 
 
 --
--- TOC entry 478 (class 1255 OID 16731)
+-- TOC entry 482 (class 1255 OID 16731)
 -- Name: update_updated_at_column(); Type: FUNCTION; Schema: storage; Owner: -
 --
 
@@ -1131,7 +1185,7 @@ $$;
 
 
 --
--- TOC entry 536 (class 1255 OID 18751)
+-- TOC entry 540 (class 1255 OID 18751)
 -- Name: http_request(); Type: FUNCTION; Schema: supabase_functions; Owner: -
 --
 
@@ -1217,7 +1271,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- TOC entry 400 (class 1259 OID 28882)
+-- TOC entry 402 (class 1259 OID 28882)
 -- Name: backtest_results; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1233,12 +1287,15 @@ CREATE TABLE public.backtest_results (
     max_drawdown numeric,
     plot_data jsonb,
     ai_analysis_payload jsonb,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    initial_value double precision,
+    total_return_pct double precision,
+    strategy_params jsonb
 );
 
 
 --
--- TOC entry 399 (class 1259 OID 28868)
+-- TOC entry 401 (class 1259 OID 28868)
 -- Name: patent_data; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1253,7 +1310,7 @@ CREATE TABLE public.patent_data (
 
 
 --
--- TOC entry 397 (class 1259 OID 28844)
+-- TOC entry 399 (class 1259 OID 28844)
 -- Name: track_requests; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1271,6 +1328,8 @@ CREATE TABLE public.track_requests (
     financial_analysis_status text DEFAULT 'pending'::text,
     patent_analysis_status text DEFAULT 'pending'::text,
     backtest_status text DEFAULT 'pending'::text,
+    ffm_status text DEFAULT 'pending'::text NOT NULL,
+    CONSTRAINT track_requests_ffm_status_check CHECK ((ffm_status = ANY (ARRAY['pending'::text, 'processing'::text, 'complete'::text, 'failed'::text]))),
     CONSTRAINT track_requests_financial_analysis_status_check CHECK ((financial_analysis_status = ANY (ARRAY['pending'::text, 'processing'::text, 'complete'::text, 'failed'::text]))),
     CONSTRAINT track_requests_patent_analysis_status_check CHECK ((patent_analysis_status = ANY (ARRAY['pending'::text, 'processing'::text, 'complete'::text, 'failed'::text]))),
     CONSTRAINT track_requests_ticker_status_check CHECK ((ticker_status = ANY (ARRAY['pending'::text, 'processing'::text, 'complete'::text, 'failed'::text])))
@@ -1278,7 +1337,7 @@ CREATE TABLE public.track_requests (
 
 
 --
--- TOC entry 401 (class 1259 OID 28896)
+-- TOC entry 403 (class 1259 OID 28896)
 -- Name: dashboard_view; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -1297,7 +1356,26 @@ CREATE VIEW public.dashboard_view AS
 
 
 --
--- TOC entry 402 (class 1259 OID 33427)
+-- TOC entry 405 (class 1259 OID 51664)
+-- Name: ffm_results; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ffm_results (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    request_id uuid NOT NULL,
+    ticker text NOT NULL,
+    alpha double precision,
+    beta_market double precision,
+    beta_smb double precision,
+    beta_hml double precision,
+    r_squared double precision,
+    analysis_type text DEFAULT 'fama_french'::text,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- TOC entry 404 (class 1259 OID 33427)
 -- Name: portfolios; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1315,6 +1393,9 @@ CREATE TABLE public.portfolios (
     pdi_status text DEFAULT 'pending'::text,
     start_date date,
     end_date date,
+    ai_portfolio_summary jsonb,
+    modal2_synthesis_status text DEFAULT 'pending'::text,
+    CONSTRAINT check_modal2_status CHECK ((modal2_synthesis_status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'failed'::text]))),
     CONSTRAINT portfolios_backtesting_status_check CHECK ((backtesting_status = ANY (ARRAY['pending'::text, 'running'::text, 'complete'::text, 'finished'::text, 'failed'::text]))),
     CONSTRAINT portfolios_date_range_check CHECK (((start_date IS NULL) OR (end_date IS NULL) OR (end_date >= start_date))),
     CONSTRAINT portfolios_fdi_status_check CHECK ((fdi_status = ANY (ARRAY['pending'::text, 'running'::text, 'complete'::text, 'finished'::text, 'failed'::text]))),
@@ -1324,7 +1405,7 @@ CREATE TABLE public.portfolios (
 
 
 --
--- TOC entry 398 (class 1259 OID 28854)
+-- TOC entry 400 (class 1259 OID 28854)
 -- Name: ticker_data; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1335,12 +1416,22 @@ CREATE TABLE public.ticker_data (
     period_start date,
     period_end date,
     raw_ohlcv jsonb,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    raw_tickerinfo jsonb
 );
 
 
 --
--- TOC entry 355 (class 1259 OID 16546)
+-- TOC entry 4033 (class 0 OID 0)
+-- Dependencies: 400
+-- Name: COLUMN ticker_data.raw_tickerinfo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.ticker_data.raw_tickerinfo IS 'Stores yfinance .info dictionary (Narrative, PE, Beta, News)';
+
+
+--
+-- TOC entry 357 (class 1259 OID 16546)
 -- Name: buckets; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1360,8 +1451,8 @@ CREATE TABLE storage.buckets (
 
 
 --
--- TOC entry 4007 (class 0 OID 0)
--- Dependencies: 355
+-- TOC entry 4034 (class 0 OID 0)
+-- Dependencies: 357
 -- Name: COLUMN buckets.owner; Type: COMMENT; Schema: storage; Owner: -
 --
 
@@ -1369,7 +1460,7 @@ COMMENT ON COLUMN storage.buckets.owner IS 'Field is deprecated, use owner_id in
 
 
 --
--- TOC entry 365 (class 1259 OID 16842)
+-- TOC entry 367 (class 1259 OID 16842)
 -- Name: buckets_analytics; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1385,7 +1476,7 @@ CREATE TABLE storage.buckets_analytics (
 
 
 --
--- TOC entry 366 (class 1259 OID 16869)
+-- TOC entry 368 (class 1259 OID 16869)
 -- Name: buckets_vectors; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1398,7 +1489,7 @@ CREATE TABLE storage.buckets_vectors (
 
 
 --
--- TOC entry 357 (class 1259 OID 16588)
+-- TOC entry 359 (class 1259 OID 16588)
 -- Name: migrations; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1411,7 +1502,7 @@ CREATE TABLE storage.migrations (
 
 
 --
--- TOC entry 356 (class 1259 OID 16561)
+-- TOC entry 358 (class 1259 OID 16561)
 -- Name: objects; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1433,8 +1524,8 @@ CREATE TABLE storage.objects (
 
 
 --
--- TOC entry 4008 (class 0 OID 0)
--- Dependencies: 356
+-- TOC entry 4035 (class 0 OID 0)
+-- Dependencies: 358
 -- Name: COLUMN objects.owner; Type: COMMENT; Schema: storage; Owner: -
 --
 
@@ -1442,7 +1533,7 @@ COMMENT ON COLUMN storage.objects.owner IS 'Field is deprecated, use owner_id in
 
 
 --
--- TOC entry 364 (class 1259 OID 16798)
+-- TOC entry 366 (class 1259 OID 16798)
 -- Name: prefixes; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1456,7 +1547,7 @@ CREATE TABLE storage.prefixes (
 
 
 --
--- TOC entry 362 (class 1259 OID 16745)
+-- TOC entry 364 (class 1259 OID 16745)
 -- Name: s3_multipart_uploads; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1474,7 +1565,7 @@ CREATE TABLE storage.s3_multipart_uploads (
 
 
 --
--- TOC entry 363 (class 1259 OID 16759)
+-- TOC entry 365 (class 1259 OID 16759)
 -- Name: s3_multipart_uploads_parts; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1493,7 +1584,7 @@ CREATE TABLE storage.s3_multipart_uploads_parts (
 
 
 --
--- TOC entry 367 (class 1259 OID 16879)
+-- TOC entry 369 (class 1259 OID 16879)
 -- Name: vector_indexes; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -1511,7 +1602,7 @@ CREATE TABLE storage.vector_indexes (
 
 
 --
--- TOC entry 396 (class 1259 OID 18740)
+-- TOC entry 398 (class 1259 OID 18740)
 -- Name: hooks; Type: TABLE; Schema: supabase_functions; Owner: -
 --
 
@@ -1525,8 +1616,8 @@ CREATE TABLE supabase_functions.hooks (
 
 
 --
--- TOC entry 4009 (class 0 OID 0)
--- Dependencies: 396
+-- TOC entry 4036 (class 0 OID 0)
+-- Dependencies: 398
 -- Name: TABLE hooks; Type: COMMENT; Schema: supabase_functions; Owner: -
 --
 
@@ -1534,7 +1625,7 @@ COMMENT ON TABLE supabase_functions.hooks IS 'Supabase Functions Hooks: Audit tr
 
 
 --
--- TOC entry 395 (class 1259 OID 18739)
+-- TOC entry 397 (class 1259 OID 18739)
 -- Name: hooks_id_seq; Type: SEQUENCE; Schema: supabase_functions; Owner: -
 --
 
@@ -1547,8 +1638,8 @@ CREATE SEQUENCE supabase_functions.hooks_id_seq
 
 
 --
--- TOC entry 4010 (class 0 OID 0)
--- Dependencies: 395
+-- TOC entry 4037 (class 0 OID 0)
+-- Dependencies: 397
 -- Name: hooks_id_seq; Type: SEQUENCE OWNED BY; Schema: supabase_functions; Owner: -
 --
 
@@ -1556,7 +1647,7 @@ ALTER SEQUENCE supabase_functions.hooks_id_seq OWNED BY supabase_functions.hooks
 
 
 --
--- TOC entry 394 (class 1259 OID 18731)
+-- TOC entry 396 (class 1259 OID 18731)
 -- Name: migrations; Type: TABLE; Schema: supabase_functions; Owner: -
 --
 
@@ -1567,7 +1658,7 @@ CREATE TABLE supabase_functions.migrations (
 
 
 --
--- TOC entry 3739 (class 2604 OID 18743)
+-- TOC entry 3752 (class 2604 OID 18743)
 -- Name: hooks id; Type: DEFAULT; Schema: supabase_functions; Owner: -
 --
 
@@ -1575,7 +1666,7 @@ ALTER TABLE ONLY supabase_functions.hooks ALTER COLUMN id SET DEFAULT nextval('s
 
 
 --
--- TOC entry 3814 (class 2606 OID 28890)
+-- TOC entry 3837 (class 2606 OID 28890)
 -- Name: backtest_results backtest_results_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1584,7 +1675,16 @@ ALTER TABLE ONLY public.backtest_results
 
 
 --
--- TOC entry 3812 (class 2606 OID 28876)
+-- TOC entry 3841 (class 2606 OID 51673)
+-- Name: ffm_results ffm_results_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ffm_results
+    ADD CONSTRAINT ffm_results_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3835 (class 2606 OID 28876)
 -- Name: patent_data patent_data_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1593,7 +1693,7 @@ ALTER TABLE ONLY public.patent_data
 
 
 --
--- TOC entry 3816 (class 2606 OID 33438)
+-- TOC entry 3839 (class 2606 OID 33438)
 -- Name: portfolios portfolios_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1602,7 +1702,7 @@ ALTER TABLE ONLY public.portfolios
 
 
 --
--- TOC entry 3810 (class 2606 OID 28862)
+-- TOC entry 3833 (class 2606 OID 28862)
 -- Name: ticker_data ticker_data_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1611,7 +1711,7 @@ ALTER TABLE ONLY public.ticker_data
 
 
 --
--- TOC entry 3808 (class 2606 OID 28853)
+-- TOC entry 3831 (class 2606 OID 28853)
 -- Name: track_requests track_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1620,7 +1720,7 @@ ALTER TABLE ONLY public.track_requests
 
 
 --
--- TOC entry 3793 (class 2606 OID 16902)
+-- TOC entry 3816 (class 2606 OID 16902)
 -- Name: buckets_analytics buckets_analytics_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1629,7 +1729,7 @@ ALTER TABLE ONLY storage.buckets_analytics
 
 
 --
--- TOC entry 3771 (class 2606 OID 16554)
+-- TOC entry 3791 (class 2606 OID 16554)
 -- Name: buckets buckets_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1638,7 +1738,7 @@ ALTER TABLE ONLY storage.buckets
 
 
 --
--- TOC entry 3796 (class 2606 OID 16878)
+-- TOC entry 3819 (class 2606 OID 16878)
 -- Name: buckets_vectors buckets_vectors_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1647,7 +1747,7 @@ ALTER TABLE ONLY storage.buckets_vectors
 
 
 --
--- TOC entry 3781 (class 2606 OID 16595)
+-- TOC entry 3801 (class 2606 OID 16595)
 -- Name: migrations migrations_name_key; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1656,7 +1756,7 @@ ALTER TABLE ONLY storage.migrations
 
 
 --
--- TOC entry 3783 (class 2606 OID 16593)
+-- TOC entry 3803 (class 2606 OID 16593)
 -- Name: migrations migrations_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1665,7 +1765,7 @@ ALTER TABLE ONLY storage.migrations
 
 
 --
--- TOC entry 3779 (class 2606 OID 16571)
+-- TOC entry 3799 (class 2606 OID 16571)
 -- Name: objects objects_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1674,7 +1774,7 @@ ALTER TABLE ONLY storage.objects
 
 
 --
--- TOC entry 3791 (class 2606 OID 16807)
+-- TOC entry 3814 (class 2606 OID 16807)
 -- Name: prefixes prefixes_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1683,7 +1783,7 @@ ALTER TABLE ONLY storage.prefixes
 
 
 --
--- TOC entry 3788 (class 2606 OID 16768)
+-- TOC entry 3811 (class 2606 OID 16768)
 -- Name: s3_multipart_uploads_parts s3_multipart_uploads_parts_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1692,7 +1792,7 @@ ALTER TABLE ONLY storage.s3_multipart_uploads_parts
 
 
 --
--- TOC entry 3786 (class 2606 OID 16753)
+-- TOC entry 3809 (class 2606 OID 16753)
 -- Name: s3_multipart_uploads s3_multipart_uploads_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1701,7 +1801,7 @@ ALTER TABLE ONLY storage.s3_multipart_uploads
 
 
 --
--- TOC entry 3799 (class 2606 OID 16888)
+-- TOC entry 3822 (class 2606 OID 16888)
 -- Name: vector_indexes vector_indexes_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1710,7 +1810,7 @@ ALTER TABLE ONLY storage.vector_indexes
 
 
 --
--- TOC entry 3803 (class 2606 OID 18748)
+-- TOC entry 3826 (class 2606 OID 18748)
 -- Name: hooks hooks_pkey; Type: CONSTRAINT; Schema: supabase_functions; Owner: -
 --
 
@@ -1719,7 +1819,7 @@ ALTER TABLE ONLY supabase_functions.hooks
 
 
 --
--- TOC entry 3801 (class 2606 OID 18738)
+-- TOC entry 3824 (class 2606 OID 18738)
 -- Name: migrations migrations_pkey; Type: CONSTRAINT; Schema: supabase_functions; Owner: -
 --
 
@@ -1728,7 +1828,7 @@ ALTER TABLE ONLY supabase_functions.migrations
 
 
 --
--- TOC entry 3806 (class 1259 OID 33450)
+-- TOC entry 3829 (class 1259 OID 33450)
 -- Name: idx_track_requests_portfolio_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1736,7 +1836,7 @@ CREATE INDEX idx_track_requests_portfolio_id ON public.track_requests USING btre
 
 
 --
--- TOC entry 3769 (class 1259 OID 16560)
+-- TOC entry 3789 (class 1259 OID 16560)
 -- Name: bname; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1744,7 +1844,7 @@ CREATE UNIQUE INDEX bname ON storage.buckets USING btree (name);
 
 
 --
--- TOC entry 3772 (class 1259 OID 16582)
+-- TOC entry 3792 (class 1259 OID 16582)
 -- Name: bucketid_objname; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1752,7 +1852,7 @@ CREATE UNIQUE INDEX bucketid_objname ON storage.objects USING btree (bucket_id, 
 
 
 --
--- TOC entry 3794 (class 1259 OID 16903)
+-- TOC entry 3817 (class 1259 OID 16903)
 -- Name: buckets_analytics_unique_name_idx; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1760,7 +1860,7 @@ CREATE UNIQUE INDEX buckets_analytics_unique_name_idx ON storage.buckets_analyti
 
 
 --
--- TOC entry 3784 (class 1259 OID 16779)
+-- TOC entry 3807 (class 1259 OID 16779)
 -- Name: idx_multipart_uploads_list; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1768,7 +1868,7 @@ CREATE INDEX idx_multipart_uploads_list ON storage.s3_multipart_uploads USING bt
 
 
 --
--- TOC entry 3773 (class 1259 OID 16825)
+-- TOC entry 3793 (class 1259 OID 16825)
 -- Name: idx_name_bucket_level_unique; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1776,7 +1876,7 @@ CREATE UNIQUE INDEX idx_name_bucket_level_unique ON storage.objects USING btree 
 
 
 --
--- TOC entry 3774 (class 1259 OID 16744)
+-- TOC entry 3794 (class 1259 OID 16744)
 -- Name: idx_objects_bucket_id_name; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1784,7 +1884,7 @@ CREATE INDEX idx_objects_bucket_id_name ON storage.objects USING btree (bucket_i
 
 
 --
--- TOC entry 3775 (class 1259 OID 16827)
+-- TOC entry 3795 (class 1259 OID 16827)
 -- Name: idx_objects_lower_name; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1792,7 +1892,7 @@ CREATE INDEX idx_objects_lower_name ON storage.objects USING btree ((path_tokens
 
 
 --
--- TOC entry 3789 (class 1259 OID 16828)
+-- TOC entry 3812 (class 1259 OID 16828)
 -- Name: idx_prefixes_lower_name; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1800,7 +1900,7 @@ CREATE INDEX idx_prefixes_lower_name ON storage.prefixes USING btree (bucket_id,
 
 
 --
--- TOC entry 3776 (class 1259 OID 16583)
+-- TOC entry 3796 (class 1259 OID 16583)
 -- Name: name_prefix_search; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1808,7 +1908,7 @@ CREATE INDEX name_prefix_search ON storage.objects USING btree (name text_patter
 
 
 --
--- TOC entry 3777 (class 1259 OID 16826)
+-- TOC entry 3797 (class 1259 OID 16826)
 -- Name: objects_bucket_id_level_idx; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1816,7 +1916,7 @@ CREATE UNIQUE INDEX objects_bucket_id_level_idx ON storage.objects USING btree (
 
 
 --
--- TOC entry 3797 (class 1259 OID 16894)
+-- TOC entry 3820 (class 1259 OID 16894)
 -- Name: vector_indexes_name_bucket_id_idx; Type: INDEX; Schema: storage; Owner: -
 --
 
@@ -1824,7 +1924,7 @@ CREATE UNIQUE INDEX vector_indexes_name_bucket_id_idx ON storage.vector_indexes 
 
 
 --
--- TOC entry 3804 (class 1259 OID 18750)
+-- TOC entry 3827 (class 1259 OID 18750)
 -- Name: supabase_functions_hooks_h_table_id_h_name_idx; Type: INDEX; Schema: supabase_functions; Owner: -
 --
 
@@ -1832,7 +1932,7 @@ CREATE INDEX supabase_functions_hooks_h_table_id_h_name_idx ON supabase_function
 
 
 --
--- TOC entry 3805 (class 1259 OID 18749)
+-- TOC entry 3828 (class 1259 OID 18749)
 -- Name: supabase_functions_hooks_request_id_idx; Type: INDEX; Schema: supabase_functions; Owner: -
 --
 
@@ -1840,7 +1940,7 @@ CREATE INDEX supabase_functions_hooks_request_id_idx ON supabase_functions.hooks
 
 
 --
--- TOC entry 3834 (class 2620 OID 33443)
+-- TOC entry 3860 (class 2620 OID 33443)
 -- Name: track_requests on_track_request_update; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1848,7 +1948,7 @@ CREATE TRIGGER on_track_request_update AFTER UPDATE OF ticker_status ON public.t
 
 
 --
--- TOC entry 3835 (class 2620 OID 41176)
+-- TOC entry 3861 (class 2620 OID 41176)
 -- Name: track_requests track_requests_completion_check; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1856,7 +1956,7 @@ CREATE TRIGGER track_requests_completion_check BEFORE UPDATE ON public.track_req
 
 
 --
--- TOC entry 3837 (class 2620 OID 43697)
+-- TOC entry 3864 (class 2620 OID 43697)
 -- Name: portfolios trigger_01_dispatcher; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1864,7 +1964,7 @@ CREATE TRIGGER trigger_01_dispatcher AFTER INSERT ON public.portfolios FOR EACH 
 
 
 --
--- TOC entry 3836 (class 2620 OID 43699)
+-- TOC entry 3862 (class 2620 OID 43699)
 -- Name: track_requests trigger_02_fdi; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1872,7 +1972,7 @@ CREATE TRIGGER trigger_02_fdi AFTER INSERT ON public.track_requests FOR EACH ROW
 
 
 --
--- TOC entry 3838 (class 2620 OID 43747)
+-- TOC entry 3865 (class 2620 OID 57382)
 -- Name: portfolios update_main_portfolio_status; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1880,7 +1980,15 @@ CREATE TRIGGER update_main_portfolio_status BEFORE UPDATE ON public.portfolios F
 
 
 --
--- TOC entry 3827 (class 2620 OID 16835)
+-- TOC entry 3863 (class 2620 OID 55045)
+-- Name: track_requests update_main_ticker_status; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_main_ticker_status BEFORE UPDATE ON public.track_requests FOR EACH ROW EXECUTE FUNCTION public.check_ticker_completion();
+
+
+--
+-- TOC entry 3853 (class 2620 OID 16835)
 -- Name: buckets enforce_bucket_name_length_trigger; Type: TRIGGER; Schema: storage; Owner: -
 --
 
@@ -1888,7 +1996,7 @@ CREATE TRIGGER enforce_bucket_name_length_trigger BEFORE INSERT OR UPDATE OF nam
 
 
 --
--- TOC entry 3828 (class 2620 OID 16865)
+-- TOC entry 3854 (class 2620 OID 16865)
 -- Name: objects objects_delete_delete_prefix; Type: TRIGGER; Schema: storage; Owner: -
 --
 
@@ -1896,7 +2004,7 @@ CREATE TRIGGER objects_delete_delete_prefix AFTER DELETE ON storage.objects FOR 
 
 
 --
--- TOC entry 3829 (class 2620 OID 16821)
+-- TOC entry 3855 (class 2620 OID 16821)
 -- Name: objects objects_insert_create_prefix; Type: TRIGGER; Schema: storage; Owner: -
 --
 
@@ -1904,7 +2012,7 @@ CREATE TRIGGER objects_insert_create_prefix BEFORE INSERT ON storage.objects FOR
 
 
 --
--- TOC entry 3830 (class 2620 OID 16864)
+-- TOC entry 3856 (class 2620 OID 16864)
 -- Name: objects objects_update_create_prefix; Type: TRIGGER; Schema: storage; Owner: -
 --
 
@@ -1912,7 +2020,7 @@ CREATE TRIGGER objects_update_create_prefix BEFORE UPDATE ON storage.objects FOR
 
 
 --
--- TOC entry 3832 (class 2620 OID 16831)
+-- TOC entry 3858 (class 2620 OID 16831)
 -- Name: prefixes prefixes_create_hierarchy; Type: TRIGGER; Schema: storage; Owner: -
 --
 
@@ -1920,7 +2028,7 @@ CREATE TRIGGER prefixes_create_hierarchy BEFORE INSERT ON storage.prefixes FOR E
 
 
 --
--- TOC entry 3833 (class 2620 OID 16866)
+-- TOC entry 3859 (class 2620 OID 16866)
 -- Name: prefixes prefixes_delete_hierarchy; Type: TRIGGER; Schema: storage; Owner: -
 --
 
@@ -1928,7 +2036,7 @@ CREATE TRIGGER prefixes_delete_hierarchy AFTER DELETE ON storage.prefixes FOR EA
 
 
 --
--- TOC entry 3831 (class 2620 OID 16732)
+-- TOC entry 3857 (class 2620 OID 16732)
 -- Name: objects update_objects_updated_at; Type: TRIGGER; Schema: storage; Owner: -
 --
 
@@ -1936,7 +2044,7 @@ CREATE TRIGGER update_objects_updated_at BEFORE UPDATE ON storage.objects FOR EA
 
 
 --
--- TOC entry 3826 (class 2606 OID 28891)
+-- TOC entry 3851 (class 2606 OID 28891)
 -- Name: backtest_results backtest_results_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1945,7 +2053,16 @@ ALTER TABLE ONLY public.backtest_results
 
 
 --
--- TOC entry 3825 (class 2606 OID 28877)
+-- TOC entry 3852 (class 2606 OID 51674)
+-- Name: ffm_results ffm_results_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ffm_results
+    ADD CONSTRAINT ffm_results_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.track_requests(request_id);
+
+
+--
+-- TOC entry 3850 (class 2606 OID 28877)
 -- Name: patent_data patent_data_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1954,7 +2071,7 @@ ALTER TABLE ONLY public.patent_data
 
 
 --
--- TOC entry 3824 (class 2606 OID 28863)
+-- TOC entry 3849 (class 2606 OID 28863)
 -- Name: ticker_data ticker_data_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1963,7 +2080,7 @@ ALTER TABLE ONLY public.ticker_data
 
 
 --
--- TOC entry 3823 (class 2606 OID 33445)
+-- TOC entry 3848 (class 2606 OID 33445)
 -- Name: track_requests track_requests_portfolio_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1972,7 +2089,7 @@ ALTER TABLE ONLY public.track_requests
 
 
 --
--- TOC entry 3817 (class 2606 OID 16572)
+-- TOC entry 3842 (class 2606 OID 16572)
 -- Name: objects objects_bucketId_fkey; Type: FK CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1981,7 +2098,7 @@ ALTER TABLE ONLY storage.objects
 
 
 --
--- TOC entry 3821 (class 2606 OID 16808)
+-- TOC entry 3846 (class 2606 OID 16808)
 -- Name: prefixes prefixes_bucketId_fkey; Type: FK CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1990,7 +2107,7 @@ ALTER TABLE ONLY storage.prefixes
 
 
 --
--- TOC entry 3818 (class 2606 OID 16754)
+-- TOC entry 3843 (class 2606 OID 16754)
 -- Name: s3_multipart_uploads s3_multipart_uploads_bucket_id_fkey; Type: FK CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -1999,7 +2116,7 @@ ALTER TABLE ONLY storage.s3_multipart_uploads
 
 
 --
--- TOC entry 3819 (class 2606 OID 16774)
+-- TOC entry 3844 (class 2606 OID 16774)
 -- Name: s3_multipart_uploads_parts s3_multipart_uploads_parts_bucket_id_fkey; Type: FK CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -2008,7 +2125,7 @@ ALTER TABLE ONLY storage.s3_multipart_uploads_parts
 
 
 --
--- TOC entry 3820 (class 2606 OID 16769)
+-- TOC entry 3845 (class 2606 OID 16769)
 -- Name: s3_multipart_uploads_parts s3_multipart_uploads_parts_upload_id_fkey; Type: FK CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -2017,7 +2134,7 @@ ALTER TABLE ONLY storage.s3_multipart_uploads_parts
 
 
 --
--- TOC entry 3822 (class 2606 OID 16889)
+-- TOC entry 3847 (class 2606 OID 16889)
 -- Name: vector_indexes vector_indexes_bucket_id_fkey; Type: FK CONSTRAINT; Schema: storage; Owner: -
 --
 
@@ -2026,7 +2143,7 @@ ALTER TABLE ONLY storage.vector_indexes
 
 
 --
--- TOC entry 3999 (class 3256 OID 33440)
+-- TOC entry 4025 (class 3256 OID 33440)
 -- Name: portfolios Users can insert own portfolios; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -2034,7 +2151,7 @@ CREATE POLICY "Users can insert own portfolios" ON public.portfolios FOR INSERT 
 
 
 --
--- TOC entry 3998 (class 3256 OID 33439)
+-- TOC entry 4024 (class 3256 OID 33439)
 -- Name: portfolios Users can view own portfolios; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -2042,86 +2159,78 @@ CREATE POLICY "Users can view own portfolios" ON public.portfolios FOR SELECT US
 
 
 --
--- TOC entry 3997 (class 0 OID 33427)
--- Dependencies: 402
--- Name: portfolios; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;
-
---
--- TOC entry 3988 (class 0 OID 16546)
--- Dependencies: 355
+-- TOC entry 4015 (class 0 OID 16546)
+-- Dependencies: 357
 -- Name: buckets; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
 
 --
--- TOC entry 3994 (class 0 OID 16842)
--- Dependencies: 365
+-- TOC entry 4021 (class 0 OID 16842)
+-- Dependencies: 367
 -- Name: buckets_analytics; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.buckets_analytics ENABLE ROW LEVEL SECURITY;
 
 --
--- TOC entry 3995 (class 0 OID 16869)
--- Dependencies: 366
+-- TOC entry 4022 (class 0 OID 16869)
+-- Dependencies: 368
 -- Name: buckets_vectors; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.buckets_vectors ENABLE ROW LEVEL SECURITY;
 
 --
--- TOC entry 3990 (class 0 OID 16588)
--- Dependencies: 357
+-- TOC entry 4017 (class 0 OID 16588)
+-- Dependencies: 359
 -- Name: migrations; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.migrations ENABLE ROW LEVEL SECURITY;
 
 --
--- TOC entry 3989 (class 0 OID 16561)
--- Dependencies: 356
+-- TOC entry 4016 (class 0 OID 16561)
+-- Dependencies: 358
 -- Name: objects; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 --
--- TOC entry 3993 (class 0 OID 16798)
--- Dependencies: 364
+-- TOC entry 4020 (class 0 OID 16798)
+-- Dependencies: 366
 -- Name: prefixes; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.prefixes ENABLE ROW LEVEL SECURITY;
 
 --
--- TOC entry 3991 (class 0 OID 16745)
--- Dependencies: 362
+-- TOC entry 4018 (class 0 OID 16745)
+-- Dependencies: 364
 -- Name: s3_multipart_uploads; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.s3_multipart_uploads ENABLE ROW LEVEL SECURITY;
 
 --
--- TOC entry 3992 (class 0 OID 16759)
--- Dependencies: 363
+-- TOC entry 4019 (class 0 OID 16759)
+-- Dependencies: 365
 -- Name: s3_multipart_uploads_parts; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.s3_multipart_uploads_parts ENABLE ROW LEVEL SECURITY;
 
 --
--- TOC entry 3996 (class 0 OID 16879)
--- Dependencies: 367
+-- TOC entry 4023 (class 0 OID 16879)
+-- Dependencies: 369
 -- Name: vector_indexes; Type: ROW SECURITY; Schema: storage; Owner: -
 --
 
 ALTER TABLE storage.vector_indexes ENABLE ROW LEVEL SECURITY;
 
--- Completed on 2026-01-01 23:09:04
+-- Completed on 2026-01-14 00:46:39
 
 --
 -- PostgreSQL database dump complete

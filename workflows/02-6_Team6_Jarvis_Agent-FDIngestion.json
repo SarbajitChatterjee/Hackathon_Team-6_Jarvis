@@ -4,9 +4,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ticker_data (request_id, ticker, period_start, period_end, raw_ohlcv)\nVALUES ($1, $2, $3, $4, $5::jsonb)\nRETURNING request_id;",
+        "query": "INSERT INTO ticker_data (request_id, ticker, period_start, period_end, raw_ohlcv, raw_tickerInfo)\nVALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)\nRETURNING request_id;",
         "options": {
-          "queryReplacement": "={{ $json.request_id }}, {{ $json.ticker }}, {{ new Date($json.start_date).toISOString().slice(0, 10) }}, {{ new Date($json.end_date).toISOString().slice(0, 10) }}, {{ JSON.stringify($('AWS=python to fetch data from yfinance').item.json.raw_ohlcv) }}"
+          "queryReplacement": "={{ $json.request_id }}, {{ $json.ticker }}, {{ new Date($json.start_date).toISOString().slice(0, 10) }}, {{ new Date($json.end_date).toISOString().slice(0, 10) }}, {{ JSON.stringify($('AWS=python to fetch data from yfinance').item.json.raw_ohlcv) }}, {{ JSON.stringify($('AWS=python to fetch data from yfinance').item.json.raw_tickerinfo) }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -27,7 +27,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://52.202.139.67:8000/portfolio/json",
+        "url": "=http://18.185.63.202:8000/portfolio/json",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"tickers\": [\n    \"{{ $('Code-Fetch from Webhook').item.json.ticker }}\"\n  ],\n  \"start_date\": \"{{ $('Code-Fetch from Webhook').item.json.start_date }}\",\n  \"end_date\": \"{{ $('Code-Fetch from Webhook').item.json.end_date }}\",\n  \"interval\": \"1d\",\n  \"batch_id\": \"{{ $('Code-Fetch from Webhook').item.json.request_id }}\",\n  \"fetch_mode\": \"chart\"\n}",
@@ -54,7 +54,7 @@
           "conditions": [
             {
               "id": "9116b91a-e951-4413-a9d2-fd7c349a5ebe",
-              "leftValue": "={{ $json.completed_count }}",
+              "leftValue": "={{ $json.current_completed }}",
               "rightValue": "={{ parseInt($('Select from portfolios DB').item.json.ticker_count) }}",
               "operator": {
                 "type": "number",
@@ -70,8 +70,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1488,
-        -96
+        1440,
+        -368
       ],
       "id": "f36cbfd7-b535-4267-abb0-4cdfe779cf20",
       "name": "If"
@@ -217,32 +217,11 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1664,
-        -224
+        1616,
+        -496
       ],
       "id": "6156afd2-8e80-454e-b260-c8f78e5b494c",
       "name": "Update rows in portfolios DB",
-      "credentials": {
-        "postgres": {
-          "id": "0xg47XH7w5CugSut",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  COUNT(*) FILTER (WHERE financial_analysis_status = 'complete') as completed_count,\n  COUNT(*) as total_count\nFROM track_requests\nWHERE portfolio_id = '{{ $('Code-Fetch from Webhook').item.json.portfolio_id }}'",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1328,
-        -224
-      ],
-      "id": "df55b2b7-3a48-4ea7-9c1b-32d508e8cf97",
-      "name": "Count Completed Requests",
       "credentials": {
         "postgres": {
           "id": "0xg47XH7w5CugSut",
@@ -381,6 +360,122 @@
       ],
       "id": "2a4cfd60-0eb4-4a17-bf17-cafd4f430f70",
       "name": "Trigger Patent Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  p.ticker_count AS target_total,\n  COUNT(tr.request_id) AS current_completed\nFROM portfolios p\nLEFT JOIN track_requests tr\n  ON tr.portfolio_id = p.id\n AND tr.financial_analysis_status = 'complete'\nWHERE p.id = $1\nGROUP BY p.ticker_count;",
+        "options": {
+          "queryReplacement": "={{ $('Code-Fetch from Webhook').item.json.portfolio_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1280,
+        -672
+      ],
+      "id": "b29b31b6-da1f-489d-a977-5b182c2102b2",
+      "name": "Count Completed Requests1",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(*) FILTER (WHERE financial_analysis_status = 'complete') as completed_count,\n  COUNT(*) as total_count\nFROM track_requests\nWHERE portfolio_id = '{{ $('Code-Fetch from Webhook').item.json.portfolio_id }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1280,
+        -496
+      ],
+      "id": "df55b2b7-3a48-4ea7-9c1b-32d508e8cf97",
+      "name": "Count Completed Requests (Backup)",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH counts AS (\n    SELECT \n        (SELECT COUNT(*) FROM track_requests WHERE portfolio_id = $1 AND financial_analysis_status = 'complete') as completed_count,\n        (SELECT ticker_count FROM portfolios WHERE id = $1) as total_count\n)\nUPDATE portfolios\nSET fdi_status = 'finished'\nWHERE id = $1 \n  AND (SELECT completed_count FROM counts) = (SELECT total_count FROM counts)\n  AND fdi_status IS DISTINCT FROM 'finished'  -- New addition\nRETURNING fdi_status;",
+        "options": {
+          "queryReplacement": "={{ $('Code-Fetch from Webhook').item.json.portfolio_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1376,
+        -112
+      ],
+      "id": "4fa253c9-abb0-4875-8325-2388ea73192a",
+      "name": "count completed and update",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "50d53fc7-ff37-4eb7-adce-2716294a93d7",
+              "leftValue": "={{ $json.fdi_status }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1584,
+        -112
+      ],
+      "id": "579d6715-e099-4519-b332-c6e54bc215a1",
+      "name": "Check If finished"
+    },
+    {
+      "parameters": {
+        "jsCode": "return { \"message\": \"FDI Batch Complete - Database Updated\" };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -208
+      ],
+      "id": "307717bf-6ee6-4d4f-a877-28c270486c62",
+      "name": "Simple debugger"
     }
   ],
   "pinData": {
@@ -473,17 +568,6 @@
         ]
       ]
     },
-    "Count Completed Requests": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Webhook": {
       "main": [
         [
@@ -554,7 +638,45 @@
       "main": [
         [
           {
-            "node": "Count Completed Requests",
+            "node": "count completed and update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Completed Requests1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Completed Requests (Backup)": {
+      "main": [
+        []
+      ]
+    },
+    "count completed and update": {
+      "main": [
+        [
+          {
+            "node": "Check If finished",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If finished": {
+      "main": [
+        [
+          {
+            "node": "Simple debugger",
             "type": "main",
             "index": 0
           }
@@ -566,7 +688,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "88a4ea42-ae67-4364-bb1d-fa0dbe8b8a47",
+  "versionId": "4ed9e8c3-b9d1-4c06-b4a4-93dfd7f9b258",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"

@@ -1,3 +1,5 @@
+-- To be replaced by check_ticker_completion() Trigger
+
 CREATE OR REPLACE FUNCTION check_request_completion()
 RETURNS TRIGGER AS $$
 BEGIN

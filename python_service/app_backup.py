@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-import random  # For random sleep/UA rotation to avoid rate limits
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -26,19 +25,10 @@ except Exception:
     yahoo_fin_get_data = None
 
 
-app = FastAPI(title="Jarvis Market Data Service", version="0.3")
+app = FastAPI(title="Jarvis Market Data Service", version="0.2")
 
 ALLOWED_INTERVALS = {"1d", "1wk", "1mo"}  # matches common Yahoo chart intervals
 DEFAULT_UA = "Mozilla/5.0"
-
-# List of real browser User-Agents to rotate through
-# This helps avoid Yahoo Finance blocking us as a bot
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-]
 
 
 class PortfolioRequest(BaseModel):
@@ -59,7 +49,7 @@ class PortfolioRequest(BaseModel):
     # Fetch strategy
     fetch_mode: Literal["chart", "yahoo_fin", "auto"] = "chart"
     # chart    -> always use Yahoo v8 chart JSON endpoint
-    # yahoo_fin -> always use yahoo_fin.get_data (may be brittle, need to change later)
+    # yahoo_fin -> always use yahoo_fin.get_data (may be brittle)
     # auto     -> try yahoo_fin, fallback to chart
 
     # Output behaviour
@@ -175,7 +165,8 @@ def _fetch_chart(
             if not ts:
                 raise ValueError("No timestamps returned")
             
-            # when ts is a list/array returns a DatetimeIndex
+            # when ts is a list/array) returns a DatetimeIndex, and .dt is a Series accessor, not for DatetimeIndex. 
+            # Pandas docs explicitly note .dt is for Series with datetimelike values, while a datetime index has its own date/time methods
             dates = pd.to_datetime(ts, unit="s", utc=True)
             df = pd.DataFrame(
                 {
@@ -264,7 +255,6 @@ def health():
     return {"status": "ok"}
 
 
-#Below is used for testing purposes
 @app.post("/portfolio/ohlcv.csv")
 def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header(default=None)):
     _require_api_key(x_api_key)
@@ -286,21 +276,8 @@ def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header
     failed: List[Tuple[str, str]] = []
     sources_used: List[str] = []
 
-    # Define keys to fetch for the CSV (Subset of Modal 2 to keep CSV clean)
-    # We exclude 'longBusinessSummary' and 'financials_history' to avoid massive CSV bloat
-    info_keys_map = {
-        "sector": "sector",
-        "industry": "industry",
-        "beta": "beta",
-        "forwardPE": "forward_pe",
-        "pegRatio": "peg_ratio",
-        "marketCap": "market_cap",
-        "recommendationMean": "recommendation_mean"
-    }
-
     for t in tickers:
         try:
-            # 1. Fetch Price Data (Existing Logic)
             if req.fetch_mode == "chart":
                 res = _fetch_chart(
                     t,
@@ -326,20 +303,6 @@ def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header
                     )
 
             df = res.df.copy()
-
-            # 2. Fetch Modal 2 Info (New Logic)
-            try:
-                yf_ticker = yf.Ticker(t)
-                info = yf_ticker.info
-                
-                # Broadcast specific info fields to every row in the DataFrame
-                for key, col_name in info_keys_map.items():
-                    val = info.get(key)
-                    df[col_name] = val
-                    
-            except Exception as e:
-                # If info fetch fails, just leave columns empty/NaN but keep price data
-                print(f"Warning: Could not fetch info for {t} in CSV mode: {e}")
 
             # Use adjusted close as close if requested and available
             if req.use_adjclose_as_close and "adjclose" in df.columns:
@@ -368,13 +331,9 @@ def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header
     merged = pd.concat(frames, ignore_index=True)
 
     # Build output columns:
-    # Standard OHLCV + The new Info columns
+    # Backtrader-standard lines + ticker; optionally adjclose and ret
     base_cols = ["datetime", "ticker", "open", "high", "low", "close", "volume", "openinterest"]
-    
-    # Add the new info columns to the output list
-    info_cols = list(info_keys_map.values())
-    
-    out_cols = base_cols + info_cols
+    out_cols = base_cols.copy()
 
     if req.include_adjclose_column and "adjclose" in merged.columns:
         # Put adjclose right after close for readability
@@ -384,7 +343,7 @@ def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header
     if req.include_returns and "ret" in merged.columns:
         out_cols.append("ret")
 
-    # Add batch/portfolio columns at the front
+    # Add batch/portfolio columns at the front (useful as an input to your DB)
     if batch_id:
         merged.insert(0, "batch_id", batch_id)
         out_cols = ["batch_id"] + out_cols
@@ -392,9 +351,17 @@ def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header
     if portfolio_id:
         insert_at = 1 if batch_id else 0
         merged.insert(insert_at, "portfolio_id", portfolio_id)
-        out_cols = (["batch_id"] if batch_id else []) + ["portfolio_id"] + [c for c in out_cols if c not in ["batch_id", "portfolio_id"]]
 
-    # Ensure all columns exist before selection (handle missing info keys)
+        # IMPORTANT: keep datetime in the output columns
+        out_cols = (["batch_id"] if batch_id else []) + ["portfolio_id"] + base_cols
+
+        # Re-add optional columns
+        if req.include_adjclose_column and "adjclose" in merged.columns:
+            out_cols.insert(out_cols.index("close") + 1, "adjclose")
+        if req.include_returns and "ret" in merged.columns:
+            out_cols.append("ret")
+
+    # Ensure all columns exist before selection
     out_cols = [c for c in out_cols if c in merged.columns]
 
     merged = merged[out_cols].sort_values(["ticker", "datetime"], kind="mergesort")
@@ -411,6 +378,7 @@ def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header
     if failed:
         headers["X-Failed-Tickers"] = ",".join([t for t, _ in failed])
 
+    # Helpful diagnostic: what source(s) were used
     if sources_used:
         headers["X-Data-Sources"] = ",".join(sorted(set(sources_used)))
 
@@ -419,174 +387,74 @@ def portfolio_ohlcv_csv(req: PortfolioRequest, x_api_key: Optional[str] = Header
 @app.post("/portfolio/json")
 def portfolio_json(req: PortfolioRequest, x_api_key: Optional[str] = Header(default=None)):
     """
-    Returns data grouped by ticker. Uses a custom session to bypass Yahoo blocks.
-    
-    CRITICAL FIX NOTES:
-    - Yahoo Finance aggressively rate-limits and blocks AWS/datacenter IPs
-    - We use rotating User-Agents, realistic browser headers, and exponential backoff
-    - Sleep times increased to 5-10 seconds to avoid HTTP 429 errors
-    - yfinance's global session is monkey-patched to use our custom session
+    Returns data grouped by ticker, specifically for Supabase 'ticker_data' ingestion.
+    Output: [{ "ticker": "SAP.DE", "raw_ohlcv": [...], "request_id": "..." }]
     """
     _require_api_key(x_api_key)
-
+    
+    # 1. Reuse the existing CSV logic to fetch and clean data
+    # (We temporarily invoke the internal logic or copy-paste the fetch loop here. 
+    # For a clean code structure, ideally, you extract the fetching loop into a strictly internal function `_get_data_frame`
+    # but for now, we can duplicate the fetch logic or refactor slightly.)
+    
+    # --- REFACTOR START: Minimal Fetch Logic Copy (Safe for your current file) ---
     tickers = [t.strip().upper() for t in req.tickers if t and t.strip()]
-    output_list = []
-
-    # ========== SETUP CUSTOM SESSION TO BYPASS YAHOO BLOCKS ==========
-    # Create a requests session that mimics a real browser
-    session = requests.Session()
+    frames = []
     
-    # Start with a random User-Agent
-    session.headers.update({
-        "User-Agent": random.choice(USER_AGENTS),
-        "Accept": "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "Referer": "https://finance.yahoo.com/",
-        "Origin": "https://finance.yahoo.com",
-        "DNT": "1"  # Do Not Track header
-    })
-
-    # ========== CRITICAL: FORCE YFINANCE TO USE OUR CUSTOM SESSION ==========
-    # yfinance makes internal requests using its own global session
-    # We monkey-patch it here to ensure ALL yfinance calls use our headers
-    import yfinance.shared as yf_shared
-    yf_shared._REQUESTS_SESSION = session
-    
-    print(f"[INFO] Monkey-patched yfinance to use custom session with User-Agent rotation")
-
-    # Define which company info fields we want to fetch
-    keys_to_fetch = [
-        "longBusinessSummary", "sector", "industry", "fullTimeEmployees",
-        "forwardPE", "trailingPE", "pegRatio", "priceToBook", "marketCap",
-        "beta", "shortRatio", "heldPercentInstitutions", 
-        "targetMeanPrice", "recommendationMean",
-        "dividendRate", "dividendYield"
-    ]
-
     for t in tickers:
-        # ========== THROTTLING: RANDOM SLEEP TO AVOID RATE LIMITS ==========
-        # Yahoo's rate limit is approximately 2000 requests/hour
-        # Sleeping 5-10 seconds between requests significantly reduces 429 errors
-        sleep_time = random.uniform(5.0, 10.0)
-        print(f"[THROTTLE] Sleeping {sleep_time:.2f}s before fetching {t}...")
-        time.sleep(sleep_time)
-
-        # ========== ROTATE USER-AGENT FOR THIS REQUEST ==========
-        # Change the User-Agent for each ticker to appear like different browsers
-        session.headers.update({
-            "User-Agent": random.choice(USER_AGENTS),
-            "Referer": f"https://finance.yahoo.com/quote/{t}/"  # Make it look like we're browsing this ticker
-        })
-
-        ticker_result = {
-            "ticker": t,
-            "batch_id": req.batch_id,
-            "raw_ohlcv": [],
-            "raw_tickerinfo": {}
-        }
-
-        # ========== PART A: FETCH PRICE DATA (OHLCV) ==========
         try:
+            # Trigger the same internal fetch functions you already have
             if req.fetch_mode == "chart":
                 res = _fetch_chart(t, req.start_date, req.end_date, req.interval, req.retries, req.backoff_base_seconds)
-            else: 
+            elif req.fetch_mode == "yahoo_fin":
+                res = _fetch_yahoo_fin(t, req.start_date, req.end_date, req.interval)
+            else:
                 try:
                     res = _fetch_yahoo_fin(t, req.start_date, req.end_date, req.interval)
                 except:
-                    # Fallback to chart if yahoo_fin fails
                     res = _fetch_chart(t, req.start_date, req.end_date, req.interval, req.retries, req.backoff_base_seconds)
             
-            # Clean the DataFrame: replace infinity with NaN, then NaN with None for JSON
             df = res.df.copy()
-            df = df.replace([float('inf'), float('-inf')], float('nan'))
-            df = df.where(pd.notnull(df), None)
-            ticker_result["raw_ohlcv"] = df[["datetime", "open", "high", "low", "close", "volume"]].to_dict(orient="records")
-            
+            frames.append(df)
         except Exception as e:
-            print(f"[ERROR] Error fetching OHLCV for {t}: {e}")
-            # Continue to info fetch even if price data fails
+            print(f"Error fetching {t}: {e}") # Log it, but continue
+            continue
+            
+    if not frames:
+         raise HTTPException(status_code=502, detail="All tickers failed.")
+         
+    merged = pd.concat(frames, ignore_index=True)
+    # --- REFACTOR END ---
 
-        # ========== PART B: FETCH COMPANY INFO WITH RETRY LOGIC ==========
-        # Yahoo often returns empty responses or blocks requests
-        # We retry up to 3 times with exponential backoff (3s, 6s, 12s)
-        max_info_retries = 3
+    # 2. Transform to "Database Ready" JSON
+    output_list = []
+    
+    # Group by ticker so we get one row per company
+    # for ticker, group in merged.groupby("ticker"):
+    for ticker, group in merged.groupby("ticker"):
+        # Select only the columns we want in the JSON blob
+        # Convert date to string to be safe for JSON
+        # records = group[["datetime", "open", "high", "low", "close", "volume"]].to_dict(orient="records")
         
-        for attempt in range(max_info_retries):
-            try:
-                # Create yfinance Ticker object (uses our monkey-patched session)
-                yf_ticker = yf.Ticker(t, session=session)
-                
-                # Trigger the info fetch (this is where Yahoo might block us)
-                full_info = yf_ticker.info
-                
-                # Extract only the fields we care about
-                clean_info = {k: full_info.get(k) for k in keys_to_fetch}
-                
-                # ========== FETCH FINANCIAL HISTORY ==========
-                # Try to get historical financials (income statement data)
-                financials_history = {}
-                try:
-                    fin_df = yf_ticker.financials
-                    if fin_df is not None and not fin_df.empty:
-                        # financials DataFrame has dates as columns and metrics as rows
-                        for date in fin_df.columns:
-                            date_str = date.strftime('%Y-%m-%d')
-                            financials_history[date_str] = {
-                                # Safely check if row exists before accessing
-                                "Total Revenue": fin_df.loc["Total Revenue", date] if "Total Revenue" in fin_df.index else None,
-                                "Net Income": fin_df.loc["Net Income", date] if "Net Income" in fin_df.index else None
-                            }
-                except Exception as e:
-                    print(f"[WARN] Financials fetch error for {t}: {e}")
-                    clean_info['financials_error'] = str(e)
-                
-                clean_info['financials_history'] = financials_history
-                ticker_result["raw_tickerinfo"] = clean_info
-                
-                print(f"[SUCCESS] Successfully fetched info for {t} on attempt {attempt + 1}")
-                break  # Success - exit retry loop
-                
-            except Exception as e:
-                error_msg = str(e)
-                print(f"[RETRY] Attempt {attempt + 1}/{max_info_retries} - Error fetching info for {t}: {e}")
-                
-                # If this isn't the last attempt, retry with exponential backoff
-                if attempt < max_info_retries - 1:
-                    # Exponential backoff: 3s, 6s, 12s
-                    backoff = 3 * (2 ** attempt)
-                    print(f"[BACKOFF] Retrying in {backoff}s...")
-                    time.sleep(backoff)
-                    
-                    # Rotate User-Agent again before retry
-                    session.headers.update({"User-Agent": random.choice(USER_AGENTS)})
-                else:
-                    # Final attempt failed - record a helpful error message
-                    print(f"[FAILED] All {max_info_retries} attempts failed for {t}")
-                    
-                    if "429" in error_msg:
-                        ticker_result["raw_tickerinfo"] = {
-                            "error": "Rate Limited (HTTP 429)", 
-                            "note": "Yahoo is blocking our requests. Reduce frequency or use proxy."
-                        }
-                    elif "Expecting value" in error_msg or "line 1 column 1" in error_msg:
-                        ticker_result["raw_tickerinfo"] = {
-                            "error": "Empty response from Yahoo", 
-                            "note": "Yahoo returned HTML/empty body instead of JSON. Likely blocked."
-                        }
-                    else:
-                        ticker_result["raw_tickerinfo"] = {
-                            "error": error_msg,
-                            "note": "Info fetch failed after retries"
-                        }
+        # output_list.append({
+        #     "ticker": ticker,
+        #     "raw_ohlcv": records,
+        #     "batch_id": req.batch_id
+        # })
+        
+        # FIX: Replace Infinity AND NaN with None (which becomes valid JSON 'null')
+        # We replace inf/-inf with NaN first, then replace all NaNs with None
+        clean_group = group.replace([float('inf'), float('-inf')], float('nan'))
+        clean_group = clean_group.where(pd.notnull(clean_group), None)
 
-        output_list.append(ticker_result)
-
-    # ========== FINAL VALIDATION ==========
-    if not output_list:
-        raise HTTPException(status_code=502, detail="All tickers failed.")
+        # Select columns and convert using the CLEAN dataframe
+        records = clean_group[["datetime", "open", "high", "low", "close", "volume"]].to_dict(orient="records")
+        
+        output_list.append({
+            "ticker": ticker,
+            "raw_ohlcv": records,
+            "batch_id": req.batch_id
+        })
 
     return output_list
 
@@ -594,40 +462,26 @@ def portfolio_json(req: PortfolioRequest, x_api_key: Optional[str] = Header(defa
 @app.post("/company/name", response_model=CompanyNameResponse)
 def resolve_company_profile(req: ResolveRequest, x_api_key: Optional[str] = Header(default=None)):
     """
-    Resolves a ticker symbol to its full legal company name.
-    Example: 'AAPL' -> 'Apple Inc.'
-    
-    This is used to match tickers to patent assignee names in PatentsView.
+    Resolves 'AAPL' -> 'Apple Inc.' using Yahoo's Search API.
     """
     _require_api_key(x_api_key)
     
     ticker = req.ticker.strip().upper()
     
-    # ========== TRY YAHOO FINANCE SEARCH API ==========
-    # This is more reliable than scraping and returns structured data
+    # 1. Try Yahoo Finance Search API (Very reliable)
     try:
         url = "https://query2.finance.yahoo.com/v1/finance/search"
-        params = {
-            "q": ticker,
-            "quotesCount": 1,  # Only need the top match
-            "newsCount": 0     # Don't need news articles
-        }
-        headers = {
-            "User-Agent": random.choice(USER_AGENTS),
-            "Accept": "application/json"
-        }
+        params = {"q": ticker, "quotesCount": 1, "newsCount": 0}
+        headers = {"User-Agent": "Mozilla/5.0"}
         
+        # 'requests' is blocking, so we use standard 'def'
         resp = requests.get(url, params=params, headers=headers, timeout=5)
         data = resp.json()
         
-        # Check if we got any results
         if "quotes" in data and len(data["quotes"]) > 0:
             best_match = data["quotes"][0]
-            
             # Prefer longname ('Apple Inc.'), fallback to shortname ('Apple')
             company_name = best_match.get("longname") or best_match.get("shortname") or ticker
-            
-            print(f"[RESOLVE] {ticker} -> {company_name}")
             
             return {
                 "ticker": ticker,
@@ -635,13 +489,9 @@ def resolve_company_profile(req: ResolveRequest, x_api_key: Optional[str] = Head
             }
             
     except Exception as e:
-        print(f"[WARN] Search API failed for {ticker}: {e}")
+        print(f"Search API failed for {ticker}: {e}")
 
-    # ========== FALLBACK: RETURN TICKER AS-IS ==========
-    # If search fails, just return the ticker symbol
-    # The caller can decide how to handle this
-    print(f"[FALLBACK] Could not resolve {ticker}, returning ticker as company_name")
-    
+    # 2. Fallback
     return {
         "ticker": ticker,
         "company_name": ticker 
