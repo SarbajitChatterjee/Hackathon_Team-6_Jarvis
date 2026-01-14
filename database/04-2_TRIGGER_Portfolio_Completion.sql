@@ -5,6 +5,7 @@ BEGIN
   IF NEW.fdi_status = 'finished' 
      AND NEW.pdi_status = 'finished'
      AND NEW.backtesting_status = 'finished' 
+     AND NEW.modal2_synthesis_status = 'finished'       -- new addition due to modifcation in the table
      THEN
      
      NEW.portfolio_status := 'finished';

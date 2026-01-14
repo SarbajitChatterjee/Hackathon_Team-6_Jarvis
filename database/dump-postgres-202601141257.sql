@@ -5,7 +5,7 @@
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.0
 
--- Started on 2026-01-14 00:46:36
+-- Started on 2026-01-14 12:57:59
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -109,11 +109,11 @@ CREATE FUNCTION public.check_portfolio_completion() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-  -- Check if ALL sub-processes (including the new Modal 2 synthesis) are 'finished'
+  -- Check if both ACTIVE sub-processes are marked as 'finished'
   IF NEW.fdi_status = 'finished' 
      AND NEW.pdi_status = 'finished'
      AND NEW.backtesting_status = 'finished' 
-     AND NEW.modal2_synthesis_status = 'finished' -- Added this condition
+     AND NEW.modal2_synthesis_status = 'finished'
      THEN
      
      NEW.portfolio_status := 'finished';
@@ -158,16 +158,17 @@ CREATE FUNCTION public.check_ticker_completion() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-    -- Update: Now checks ALL 4 STATUSES (Financial, Patent, Backtest, AND FFM)
+    -- Check if all 3 sub-processes are marked 'complete'
+    -- Note: We use IS NOT DISTINCT FROM to handle potential NULLs safely
     IF NEW.financial_analysis_status = 'complete' AND 
        NEW.patent_analysis_status = 'complete' AND 
-       NEW.backtest_status = 'complete' AND
-       NEW.ffm_status = 'complete' THEN   -- <--- Added this check
+       NEW.ffm_status = 'complete' AND              -- new addition wrt to new column added
+       NEW.backtest_status = 'complete' THEN
        
-       -- Mark the main ticker as completed
-       NEW.ticker_status = 'completed';
+       -- Update the main status automatically
+       NEW.ticker_status = 'complete';
        
-       -- Set timestamp if missing
+       -- Optional: Update the completed_at timestamp if it's not already set
        IF NEW.completed_at IS NULL THEN
            NEW.completed_at = NOW();
        END IF;
@@ -1395,7 +1396,7 @@ CREATE TABLE public.portfolios (
     end_date date,
     ai_portfolio_summary jsonb,
     modal2_synthesis_status text DEFAULT 'pending'::text,
-    CONSTRAINT check_modal2_status CHECK ((modal2_synthesis_status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'failed'::text]))),
+    CONSTRAINT check_modal2_status CHECK ((modal2_synthesis_status = ANY (ARRAY['pending'::text, 'processing'::text, 'complete'::text, 'failed'::text]))),
     CONSTRAINT portfolios_backtesting_status_check CHECK ((backtesting_status = ANY (ARRAY['pending'::text, 'running'::text, 'complete'::text, 'finished'::text, 'failed'::text]))),
     CONSTRAINT portfolios_date_range_check CHECK (((start_date IS NULL) OR (end_date IS NULL) OR (end_date >= start_date))),
     CONSTRAINT portfolios_fdi_status_check CHECK ((fdi_status = ANY (ARRAY['pending'::text, 'running'::text, 'complete'::text, 'finished'::text, 'failed'::text]))),
@@ -1940,11 +1941,11 @@ CREATE INDEX supabase_functions_hooks_request_id_idx ON supabase_functions.hooks
 
 
 --
--- TOC entry 3860 (class 2620 OID 33443)
+-- TOC entry 3860 (class 2620 OID 58487)
 -- Name: track_requests on_track_request_update; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER on_track_request_update AFTER UPDATE OF ticker_status ON public.track_requests FOR EACH ROW WHEN ((new.ticker_status = 'COMPLETED'::text)) EXECUTE FUNCTION public.check_portfolio_completion();
+CREATE TRIGGER on_track_request_update AFTER UPDATE OF ticker_status ON public.track_requests FOR EACH ROW WHEN ((new.ticker_status = 'complete'::text)) EXECUTE FUNCTION public.check_portfolio_completion();
 
 
 --
@@ -1972,7 +1973,7 @@ CREATE TRIGGER trigger_02_fdi AFTER INSERT ON public.track_requests FOR EACH ROW
 
 
 --
--- TOC entry 3865 (class 2620 OID 57382)
+-- TOC entry 3865 (class 2620 OID 58550)
 -- Name: portfolios update_main_portfolio_status; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1980,7 +1981,7 @@ CREATE TRIGGER update_main_portfolio_status BEFORE UPDATE ON public.portfolios F
 
 
 --
--- TOC entry 3863 (class 2620 OID 55045)
+-- TOC entry 3863 (class 2620 OID 58533)
 -- Name: track_requests update_main_ticker_status; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2230,7 +2231,7 @@ ALTER TABLE storage.s3_multipart_uploads_parts ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE storage.vector_indexes ENABLE ROW LEVEL SECURITY;
 
--- Completed on 2026-01-14 00:46:39
+-- Completed on 2026-01-14 12:58:02
 
 --
 -- PostgreSQL database dump complete
