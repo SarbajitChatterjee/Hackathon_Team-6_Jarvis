@@ -1,0 +1,518 @@
+{
+  "name": "Team6_Jarvis_Agent-PDIngestion",
+  "nodes": [
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "patent_data"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $json.request_id }}",
+            "ticker": "={{ $json.ticker }}",
+            "patent_count": "={{ $json.patent_count }}",
+            "summary_payload": "={{ $json.summary_payload }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "request_id",
+              "displayName": "request_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ticker",
+              "displayName": "ticker",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary_payload",
+              "displayName": "summary_payload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "patent_count",
+              "displayName": "patent_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "13d5a956-e451-4fac-b5c7-dde642368674",
+      "name": "Save to Patent_data DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1456,
+        -224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Role: You are a Senior Deep Tech Venture Capitalist and IP Analyst with expertise in identifying R&D inflection points.\n\nObjective: Analyze patent data chronologically to assess:\n1. The company's innovation trajectory and strategic pivots\n2. Commercial moat strength and market readiness\n3. Hidden risks (litigation, obsolescence, regulatory)\n\nCritical Instruction: Patents are sorted by date (newest first). You MUST identify temporal patterns in filing focus to detect strategic shifts.\n\nOutput Rules:\n- Return ONLY valid JSON\n- No Markdown formatting (no ```json)\n- No conversational text or preamble\n- Follow the exact schema provided"
+            },
+            {
+              "content": "=Company: {{ $('Fetch request from track_requests DB').item.json.company_name }} ({{ $('Fetch request from track_requests DB').item.json.ticker }})\n\nPatent Portfolio Summary:\n- Total Patents: {{ $('Fetch Patent data from PatentsView (Unstructured)').item.json.total_patent_count }}\n- Date Range: {{ $('Fetch request from track_requests DB').item.json.start_date.toString().slice(0, 10) }} to Present\n- Patents sorted by date (newest → oldest)\n\nRaw Patent Data:\n{{ JSON.stringify($('Slim Down (input)Patent Data').item.json.patents) }}\n\nAnalysis Tasks:\n\n1. **Innovation Quality (1-10)**: Are these breakthrough inventions or incremental improvements?\n\n2. **Commercial Readiness (1-10)**: How close are these patents to generating revenue? Consider:\n   - Specificity of claims\n   - Practical applications described\n   - Industry adoption potential\n\n3. **Litigation Risk (1-10)**: Assess overlap with crowded patent spaces, potential troll targets, or defensive weaknesses.\n\n4. **Moat Width**: Choose one: Narrow (easy to design around), Wide (strong protection), or Fortress (industry-defining IP)\n\n5. **Strategic Trend (CRITICAL)**: Analyze the chronology. What is the company's R&D trajectory?\n   Examples:\n   - \"Pivoting from consumer hardware → enterprise AI infrastructure (2020-2024)\"\n   - \"Doubling down on battery tech while abandoning autonomous systems (2018-2023)\"\n   - \"Expanding from social media → VR/AR metaverse (2021-2024)\"\n   \n   Your answer MUST reference time periods and specific technology shifts observed in the data.\n\n6. **Bull Case (20 words max)**: Why does this IP portfolio increase stock value?\n\n7. **Bear Case (20 words max)**: What's the biggest IP-related risk to the investment thesis?\n\n8. **Tech Tags**: Extract 5-8 keywords representing the core technology domains (e.g., [\"Neural Networks\", \"Battery Chemistry\", \"5G\", \"Quantum Computing\"])"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        -208
+      ],
+      "id": "09d189d0-e534-4660-a1ee-4bb98529438b",
+      "name": "Modal 1",
+      "credentials": {
+        "openAiApi": {
+          "id": "8dc8qKRWWImiYlCw",
+          "name": "OpenAi account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1) Extract AI response text\nconst aiText =\n  $json?.output?.[0]?.content?.find(c => c.type === \"output_text\")?.text\n  ?? $json?.output?.[0]?.content?.[0]?.text\n  ?? $json?.text\n  ?? $json?.response\n  ?? $json?.content\n  ?? \"\";\n\nif (!String(aiText).trim()) {\n  throw new Error(\"Could not find AI text. Expected $json.output[0].content[*].text\");\n}\n\n// 2) Clean code fences\nlet s = String(aiText)\n  .trim()\n  .replace(/^```(?:json)?\\s*/i, \"\")\n  .replace(/```$/i, \"\")\n  .trim();\n\n// 3) Parse JSON (AI Analysis)\nlet parsed;\ntry {\n  parsed = JSON.parse(s);\n} catch (e) {\n  throw new Error(\"AI output is not valid JSON. First 300 chars:\\n\" + s.slice(0, 300));\n}\n\n// -------------------------------------------------------------\n// 4) UPSTREAM DATA LOOKUP (Robust Fix)\n// -------------------------------------------------------------\n\n// DEFINE YOUR NODE NAMES HERE EXACTLY AS THEY APPEAR IN CANVAS\n// We use fallbacks to find the request details\nconst reqNode = \n  $node[\"Fetch request from track_requests DB\"]?.json ?? \n  $node[\"Temporary create request\"]?.json ?? \n  $node[\"Create Request in track_requests DB\"]?.json ??\n  $node[\"Postgres\"]?.json ??\n  null;\n\n// Define the PatentsView node name exactly\nconst patentNode = $node[\"Fetch Patent data from PatentsView (Unstructured)\"]?.json ?? null;\n\n// Validation\nconst request_id = $json.request_id ?? reqNode?.request_id;\nconst ticker = $json.ticker ?? reqNode?.ticker;\n\nif (!request_id) throw new Error(\"Missing request_id. Checked upstream nodes but found nothing.\");\nif (!ticker) throw new Error(\"Missing ticker. Checked upstream nodes but found nothing.\");\n\n// 5) summary_payload: Store the AI analysis\n// The 'parsed' object IS your summary payload (innovation_score, trends, etc.)\nconst summary_payload = parsed;\n\n// 6) patent_count: Prioritize the API's 'total' count\n// PatentsView v1 returns 'total_patent_count' (global) and 'count' (page size).\n// If API fails, fall back to AI or array length.\nconst patent_count = \n  patentNode?.total_patent_count ?? \n  patentNode?.count ?? \n  (Array.isArray(parsed.patents) ? parsed.patents.length : 0);\n\n// 7) created_at\nconst created_at = new Date().toISOString();\n\n// 8) Output\nreturn [\n  {\n    json: {\n      request_id,\n      ticker,\n      summary_payload,\n      patent_count,\n      created_at,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        -352
+      ],
+      "id": "5452a39b-1867-43f5-95df-31c21f13b42b",
+      "name": "Parse AI JSON"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE track_requests\nSET patent_analysis_status = 'complete'\nWHERE request_id = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.request_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1616,
+        -352
+      ],
+      "id": "a8902a07-1c8e-4d52-8962-1790dffb8a2b",
+      "name": "Update Patent Status in track_request",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/start-patent-analysis",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        -224
+      ],
+      "id": "f16d92b0-3d76-4675-9412-57740756b801",
+      "name": "Webhook",
+      "webhookId": "0ae833c4-f3a6-41fa-9fb3-e69a1b6610f2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  request_id,\n  portfolio_id,\n  ticker,\n  start_date,\n  end_date,\n  company_name\nFROM track_requests \nWHERE request_id = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.body.request_id }}"
+        }
+      },
+      "id": "eb177f67-5805-4a68-a5f9-e0d50359d19a",
+      "name": "Fetch request from track_requests DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        288,
+        -224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://search.patentsview.org/api/v1/patent/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"q\": {\n    \"_and\": [\n      {\n        \"_text_phrase\": {\n          \"assignees.assignee_organization\": \"{{ $('Fetch request from track_requests DB').item.json.company_name }}\"\n        }\n      },\n      {\n        \"_gte\": {\n          \"patent_date\": \"{{ new Date($('Fetch request from track_requests DB').item.json.start_date).toISOString().slice(0, 10) }}\"\n        }\n      },\n      {\n        \"_lte\": {\n          \"patent_date\": \"{{ new Date($('Fetch request from track_requests DB').item.json.end_date).toISOString().slice(0, 10) }}\"\n        }\n      }\n    ]\n  },\n  \"f\": [\"patent_title\", \"patent_abstract\", \"patent_date\"],\n  \"o\": {\n    \"per_page\": 25,\n    \"page\": 1\n  },\n  \"s\": [\n    {\n      \"patent_date\": \"desc\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        640,
+        -224
+      ],
+      "id": "53e08632-8be4-460f-a3b9-9b3cc4799f03",
+      "name": "Fetch Patent data from PatentsView (Unstructured)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "in5Vn2DLSPsZTMB9",
+          "name": "Header Auth account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE portfolios\n   SET PDI_status = 'running'\n   WHERE id = '{{ $json.portfolio_id }}'\n     AND PDI_status = 'pending'\n   RETURNING *",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        464,
+        -368
+      ],
+      "id": "eec40fc3-2cdd-4b85-8731-305a9d0ee255",
+      "name": "Update to running status in portfolios DB",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the raw data\nconst rawData = items[0].json;\nconst patents = rawData.patents || [];\n\n// Map to a lightweight format for the AI\nconst slimmed = patents.map(p => {\n  return {\n    title: p.patent_title,\n    date: p.patent_date,\n    // Take only first 300 chars of abstract to save tokens\n    abstract: (p.patent_abstract || \"\").substring(0, 300) + \"...\"\n  };\n});\n\n// Return the slimmed list AND the total count\nreturn [{\n  json: {\n    company_name: rawData.company_name || \"Target Company\", // Ensure this exists from previous node or merge\n    total_count: rawData.total_patent_count,\n    patents: slimmed\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -352
+      ],
+      "id": "d41bfa36-bae6-46c3-8e0b-74b1c4ffc9a4",
+      "name": "Slim Down (input)Patent Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH counts AS (\n    SELECT \n        (SELECT COUNT(*) FROM track_requests WHERE portfolio_id = $1 AND patent_analysis_status = 'complete') as completed_count,\n        (SELECT ticker_count FROM portfolios WHERE id = $1) as total_count\n)\nUPDATE portfolios\nSET pdi_status = 'finished'\nWHERE id = $1 \n  AND (SELECT completed_count FROM counts) = (SELECT total_count FROM counts)\nRETURNING pdi_status;",
+        "options": {
+          "queryReplacement": "={{ $('Fetch request from track_requests DB').item.json.portfolio_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1824,
+        -352
+      ],
+      "id": "a9bbd2ca-433d-47da-81e5-3963f8a252f5",
+      "name": "count completed and update",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "880cf883-26e4-45a1-af8e-d12053a4a8b8",
+              "leftValue": "={{ $json.fdi_status }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2032,
+        -352
+      ],
+      "id": "e7cc12e2-ae41-4a2f-9024-79b8cf4ed3b8",
+      "name": "Check IF finished"
+    },
+    {
+      "parameters": {
+        "jsCode": "return { \"message\": \"FDI Batch Complete - Database Updated\" };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        -496
+      ],
+      "id": "a3376f1b-4660-42e2-a33d-3d7f62e1d748",
+      "name": "Simple Debugger"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "unisaarland.app.n8n.cloud",
+            "user-agent": "axios/1.12.0",
+            "content-length": "53",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "20.218.174.15",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "DE",
+            "cf-ray": "9b748329b2b7d3a8-FRA",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "x-forwarded-for": "20.218.174.15, 172.71.172.38",
+            "x-forwarded-host": "unisaarland.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-70-565db6c64f-rs2pf",
+            "x-is-trusted": "yes",
+            "x-real-ip": "20.218.174.15"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "request_id": "1271f52a-a8a2-4ee7-8725-e42404891b27"
+          },
+          "webhookUrl": "https://unisaarland.app.n8n.cloud/webhook/start-patent-analysis",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Modal 1": {
+      "main": [
+        [
+          {
+            "node": "Parse AI JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI JSON": {
+      "main": [
+        [
+          {
+            "node": "Save to Patent_data DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Patent_data DB": {
+      "main": [
+        [
+          {
+            "node": "Update Patent Status in track_request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch request from track_requests DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch request from track_requests DB": {
+      "main": [
+        [
+          {
+            "node": "Update to running status in portfolios DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Patent data from PatentsView (Unstructured)": {
+      "main": [
+        [
+          {
+            "node": "Slim Down (input)Patent Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Patent Status in track_request": {
+      "main": [
+        [
+          {
+            "node": "count completed and update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update to running status in portfolios DB": {
+      "main": [
+        [
+          {
+            "node": "Fetch Patent data from PatentsView (Unstructured)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slim Down (input)Patent Data": {
+      "main": [
+        [
+          {
+            "node": "Modal 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "count completed and update": {
+      "main": [
+        [
+          {
+            "node": "Check IF finished",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check IF finished": {
+      "main": [
+        [
+          {
+            "node": "Simple Debugger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "07878d22-f95a-4094-8c40-82044601c05c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"
+  },
+  "id": "4OeRxpWCWCpeEJ5M",
+  "tags": []
+}
