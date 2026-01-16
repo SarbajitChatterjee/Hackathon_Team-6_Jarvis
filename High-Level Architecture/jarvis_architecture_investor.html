@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis - System Architecture Overview</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 50px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+        
+        .content {
+            padding: 60px;
+        }
+        
+        .value-prop {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 40px;
+            margin-bottom: 50px;
+            text-align: center;
+        }
+        
+        .value-prop h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        
+        .value-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .metric {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 10px;
+        }
+        
+        .metric-label {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+        
+        .diagram-section {
+            margin: 50px 0;
+        }
+        
+        .diagram-section h2 {
+            color: #2d3748;
+            font-size: 2em;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .diagram-description {
+            background: #f7fafc;
+            padding: 20px 30px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .diagram-description p {
+            color: #4a5568;
+            line-height: 1.8;
+            font-size: 1.05em;
+        }
+        
+        .mermaid {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        
+        .key-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 40px 0;
+        }
+        
+        .feature {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-radius: 12px;
+            padding: 30px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .feature h3 {
+            color: #2d3748;
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature p {
+            color: #4a5568;
+            line-height: 1.7;
+        }
+        
+        .footer {
+            background: #2d3748;
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .footer p {
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .footer .logo-section {
+            margin-top: 20px;
+            opacity: 0.7;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Jarvis</h1>
+            <p>AI-Powered Portfolio Intelligence Platform</p>
+        </div>
+        
+        <div class="content">
+            <div class="value-prop">
+                <h2>Transforming €64bn AUM Through AI-Driven Investment Intelligence</h2>
+                <div class="value-metrics">
+                    <div class="metric">
+                        <span class="metric-value">20-30s</span>
+                        <span class="metric-label">Analysis Time<br/>(vs. days manually)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-value">+2.5%</span>
+                        <span class="metric-label">Target Excess Return<br/>(Alpha Generation)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-value">-19%</span>
+                        <span class="metric-label">Research Cost<br/>Reduction</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-value">€1bn+</span>
+                        <span class="metric-label">AUM Growth<br/>Potential</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Architecture View 1: Comprehensive -->
+            <div class="diagram-section">
+                <h2>System Architecture: End-to-End Intelligence Flow</h2>
+                <div class="diagram-description">
+                    <p><strong>What This Shows:</strong> How Jarvis transforms raw market data, patent filings, and alternative datasets into actionable investment intelligence. The system operates autonomously, processing multiple data sources in parallel and delivering structured insights to portfolio managers in seconds.</p>
+                </div>
+                <div class="mermaid">
+graph TB
+    subgraph "DATA SOURCES"
+        A1[📈 Financial Markets<br/>Price Data & Fundamentals]
+        A2[🔬 Patent Databases<br/>Innovation Intelligence]
+        A3[📰 Alternative Data<br/>News & Sentiment]
+    end
+    
+    subgraph "JARVIS AI ENGINE"
+        direction TB
+        B1[🤖 Data Ingestion Layer<br/>Multi-Source Collection]
+        B2[🧠 AI Analysis Engine<br/>GPT-4o Processing]
+        B3[📊 Quantitative Models<br/>Fama-French & Backtesting]
+        
+        B1 --> B2
+        B2 --> B3
+    end
+    
+    subgraph "INTELLIGENT DATABASE"
+        C1[(📚 Structured<br/>Investment Intelligence)]
+    end
+    
+    subgraph "PORTFOLIO MANAGERS"
+        D1[👨‍💼 Investment Decisions<br/>Human-in-the-Loop]
+    end
+    
+    subgraph "VALUE DELIVERED"
+        E1[⚡ Faster Decisions<br/>Minutes vs. Days]
+        E2[🎯 Higher Alpha<br/>+1.5-2.5% Excess Return]
+        E3[💰 Cost Efficiency<br/>-19% Research Costs]
+        E4[📈 AUM Growth<br/>Better Performance = More Flows]
+    end
+    
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    
+    B3 --> C1
+    
+    C1 --> D1
+    
+    D1 --> E1
+    D1 --> E2
+    D1 --> E3
+    D1 --> E4
+    
+    style A1 fill:#e3f2fd
+    style A2 fill:#e3f2fd
+    style A3 fill:#e3f2fd
+    style B1 fill:#fff3e0
+    style B2 fill:#fff3e0
+    style B3 fill:#fff3e0
+    style C1 fill:#f3e5f5
+    style D1 fill:#e8f5e9
+    style E1 fill:#ffebee
+    style E2 fill:#ffebee
+    style E3 fill:#ffebee
+    style E4 fill:#ffebee
+                </div>
+            </div>
+
+            <!-- Architecture View 2: Functional Flow -->
+            <div class="diagram-section">
+                <h2>Functional Flow: From Data to Decision</h2>
+                <div class="diagram-description">
+                    <p><strong>What This Shows:</strong> The simplified information flow from raw inputs through intelligent processing to measurable business outcomes. This linear view emphasizes speed and automation—what traditionally takes days now happens in 20-30 seconds.</p>
+                </div>
+                <div class="mermaid">
+flowchart LR
+    subgraph Input["📥 INPUT"]
+        I1[Market Data]
+        I2[Patent Filings]
+        I3[News Flows]
+    end
+    
+    subgraph Process["⚙️ JARVIS PROCESSING"]
+        P1[Data Collection<br/>& Cleaning]
+        P2[AI Analysis<br/>& Structuring]
+        P3[Quantitative<br/>Modeling]
+    end
+    
+    subgraph Output["📤 OUTPUT"]
+        O1[Investment Signals]
+        O2[Risk Metrics]
+        O3[AI Insights]
+    end
+    
+    subgraph Impact["💡 BUSINESS IMPACT"]
+        IM1[⚡ 20-30 sec<br/>Analysis Time]
+        IM2[🎯 +2.5%<br/>Excess Return]
+        IM3[💰 -19%<br/>Research Costs]
+    end
+    
+    Input --> Process
+    Process --> Output
+    Output --> Impact
+    
+    style Input fill:#e3f2fd
+    style Process fill:#fff3e0
+    style Output fill:#f3e5f5
+    style Impact fill:#c8e6c9
+                </div>
+            </div>
+
+            <!-- Architecture View 3: Three-Layer Model -->
+            <div class="diagram-section">
+                <h2>Three-Layer Architecture: Strategic View</h2>
+                <div class="diagram-description">
+                    <p><strong>What This Shows:</strong> The strategic architecture organized into three logical layers. This view emphasizes how Jarvis sits as an intelligent middleware between data sources and investment decisions, creating a defensible competitive advantage through institutional learning.</p>
+                </div>
+                <div class="mermaid">
+graph TB
+    subgraph Layer1["🌐 DATA LAYER<br/><br/>Multi-Source Intelligence"]
+        L1A[Financial Markets]
+        L1B[Patent Databases]
+        L1C[Alternative Data]
+    end
+    
+    subgraph Layer2["🤖 AI INTELLIGENCE LAYER<br/><br/>Jarvis Engine"]
+        L2A[Automated Data Processing]
+        L2B[AI-Powered Analysis]
+        L2C[Quantitative Modeling]
+        L2D[Predictive Signals]
+    end
+    
+    subgraph Layer3["👥 DECISION LAYER<br/><br/>Portfolio Management"]
+        L3A[Enhanced Investment Decisions]
+        L3B[Real-Time Risk Monitoring]
+        L3C[Portfolio Optimization]
+    end
+    
+    subgraph Results["📊 MEASURABLE OUTCOMES"]
+        R1[⚡ 95% Faster Analysis]
+        R2[🎯 +2.5% Alpha Generation]
+        R3[💰 19% Cost Reduction]
+        R4[📈 €1bn AUM Growth Potential]
+    end
+    
+    Layer1 ==> Layer2
+    Layer2 ==> Layer3
+    Layer3 ==> Results
+    
+    style Layer1 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    style Layer2 fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    style Layer3 fill:#e8f5e9,stroke:#388e3c,stroke-width:3px
+    style Results fill:#ffebee,stroke:#d32f2f,stroke-width:3px
+                </div>
+            </div>
+
+            <!-- Key Differentiators -->
+            <div class="key-features">
+                <div class="feature">
+                    <h3>🛡️ Data Resilience</h3>
+                    <p>Multi-tier fail-safe architecture ensures 99.9% data availability even with API rate limits through intelligent source fallback (yFinance → FinViz → AlphaVantage).</p>
+                </div>
+                
+                <div class="feature">
+                    <h3>🧠 Deep Semantic Analysis</h3>
+                    <p>Unlike dashboard tools, Jarvis uses GPT-4o to interpret patent claims, detect R&D pivots, and assess commercial readiness—not just keyword counting.</p>
+                </div>
+                
+                <div class="feature">
+                    <h3>📊 Valuation Integration</h3>
+                    <p>Connects innovation signals directly to DCF assumptions (growth rates, competitive advantage period, margins) rather than standalone metrics.</p>
+                </div>
+                
+                <div class="feature">
+                    <h3>✅ Governance-Ready Design</h3>
+                    <p>Built for regulated institutions with full traceability, explainable AI outputs, controlled model updates, and human approval gates.</p>
+                </div>
+                
+                <div class="feature">
+                    <h3>🔄 Continuous Learning</h3>
+                    <p>System improves over time as PMs provide feedback, building institutional memory and firm-specific intelligence that cannot be replicated externally.</p>
+                </div>
+                
+                <div class="feature">
+                    <h3>⚡ Real-Time Processing</h3>
+                    <p>Parallel workflow execution delivers complete portfolio analysis (5 tickers) in 20-30 seconds versus manual processes taking days.</p>
+                </div>
+            </div>
+
+            <!-- Technical Highlights -->
+            <div class="diagram-section">
+                <h2>Technical Highlights</h2>
+                <div class="diagram-description">
+                    <p><strong>Current MVP Capabilities:</strong></p>
+                    <ul style="margin-top: 15px; padding-left: 20px; color: #4a5568; line-height: 2;">
+                        <li><strong>Data Sources:</strong> Yahoo Finance (real-time), USPTO PatentsView (147k+ patents), OpenAI GPT-4o-mini</li>
+                        <li><strong>Infrastructure:</strong> PostgreSQL (Supabase), n8n orchestration, FastAPI microservices, Docker/AWS deployment</li>
+                        <li><strong>Analysis Speed:</strong> 20-30 seconds for 5-ticker portfolio (end-to-end)</li>
+                        <li><strong>AI Processing:</strong> Patent structuring, innovation scoring (1-10), R&D trend detection, commercial readiness assessment</li>
+                        <li><strong>Quantitative Models:</strong> Fama-French 3-factor regression, moving average backtesting, Sharpe ratio & drawdown analysis</li>
+                        <li><strong>Output Format:</strong> Unified investment recommendations, bull/bear cases, risk metrics, portfolio-level synthesis</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+        
+        <div class="footer">
+            <p><strong>Jarvis - AI Co-Manager for Active Investment Management</strong></p>
+            <p>Future Pioneers Paris Edition | Powered by ODDO BHF</p>
+            <div class="logo-section">
+                <p style="font-size: 0.9em;">Team 6: Violet Si, Mohamed Raslan, Sarbajit Chatterjee, Rushan Mukherjee</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#667eea',
+                primaryTextColor: '#2d3748',
+                primaryBorderColor: '#667eea',
+                lineColor: '#a0aec0',
+                secondaryColor: '#f7fafc',
+                tertiaryColor: '#edf2f7'
+            },
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>

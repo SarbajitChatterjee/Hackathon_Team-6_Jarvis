@@ -1,0 +1,106 @@
+---
+config:
+  theme: mc
+  themeVariables:
+    primaryColor: '#FFFFFF'
+    secondaryColor: '#F6F8FB'
+    tertiaryColor: '#FFFFFF'
+    mainBkg: '#FFFFFF'
+    primaryBorderColor: '#E5E7EB'
+    secondaryBorderColor: '#E5E7EB'
+    lineColor: '#9CA3AF'
+    textColor: '#111827'
+    fontFamily: ''
+    fontSize: 14px
+  look: neo
+---
+erDiagram
+    portfolios ||--|{ track_requests : "fan-out (1 per ticker)"
+    track_requests ||--|| ticker_data : "OHLCV + fundamentals"
+    track_requests ||--|| patent_data : "AI patent summary"
+    track_requests ||--|| ffm_results : "Fama-French run"
+    track_requests ||--|| backtest_results : "backtest + AI narrative"
+
+    portfolios {
+        uuid        id PK
+        text        name
+        text[]      input_tickers
+        int4        ticker_count
+        uuid        user_id
+        timestamptz created_at
+        date        start_date
+        date        end_date
+        text        thesis
+
+        text        portfolio_status
+        text        fdi_status
+        text        pdi_status
+        text        backtesting_status
+        text        modal2_synthesis_status
+
+        jsonb       ai_portfolio_summary
+        jsonb       bull_bear_case
+    }
+
+    track_requests {
+        uuid        request_id PK
+        uuid        portfolio_id FK
+        text        ticker
+        text        company_name
+        date        start_date
+        date        end_date
+
+        text        ticker_status
+        text        financial_analysis_status
+        text        patent_analysis_status
+        text        ffm_status
+        text        backtest_status
+
+        timestamptz created_at
+        timestamptz completed_at
+        text        error_log
+    }
+
+    ticker_data {
+        uuid        id PK
+        uuid        request_id FK
+        text        ticker
+        date        period_start
+        date        period_end
+        jsonb       raw_ohlcv
+        jsonb       raw_tickerinfo
+        timestamptz created_at
+    }
+
+    patent_data {
+        uuid        id PK
+        uuid        request_id FK
+        text        ticker
+        int4        patent_count
+        jsonb       summary_payload
+        timestamptz created_at
+    }
+
+    ffm_results {
+        uuid        id PK
+        uuid        request_id FK
+        text        ticker
+        float8      alpha
+        float8      beta_market
+        float8      beta_smb
+        float8      beta_hml
+        float8      r_squared
+        text        analysis_type
+        timestamp   created_at
+    }
+
+    backtest_results {
+        uuid        id PK
+        uuid        request_id FK
+        text        ticker
+        numeric     sharpe_ratio
+        numeric     max_drawdown
+        jsonb       plot_data
+        jsonb       ai_analysis_payload
+        timestamptz created_at
+    }
