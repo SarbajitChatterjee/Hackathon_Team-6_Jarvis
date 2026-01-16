@@ -61,7 +61,7 @@ While traditional asset management struggles with fee compression and informatio
 
 ### High-Level Flow
 <div align="center">
-<img src="docs/diagrams/high_level_architecture.png" alt="High Level Architecture" width="800"/>
+<img src="High-Level Architecture/Team-6 Jarvis_ High Level Architecture-2026-01-15-155853.png" alt="High Level Architecture" width="800"/>
 </div>
 
 **4-Phase Workflow:**
@@ -72,7 +72,7 @@ While traditional asset management struggles with fee compression and informatio
 
 ### Entity Relationship Diagram
 <div align="center">
-<img src="docs/diagrams/erd.png" alt="ERD" width="700"/>
+<img src="ERD/Jarvis-Team6 Entity Relationship Diagram-2026-01-15-141155.png" alt="ERD" width="700"/>
 </div>
 
 **Key Tables:**
