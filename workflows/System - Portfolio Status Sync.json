@@ -1,0 +1,71 @@
+{
+  "name": "System - Portfolio Status Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6e17c287-71f8-4893-8cd2-73b098fef43e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE portfolios\nSET portfolio_status = CASE\n    -- PRIORITY 1: FAILURE\n    -- If any sub-process has failed, the master status is failed.\n    WHEN fdi_status IN ('failed', 'error') \n      OR pdi_status IN ('failed', 'error') \n      OR backtesting_status IN ('failed', 'error') \n      OR modal2_synthesis_status IN ('failed', 'error')\n    THEN 'failed'\n\n    -- PRIORITY 2: SUCCESS\n    -- All 4 parts must be 'finished' (or 'complete' just to be safe).\n    WHEN fdi_status IN ('finished', 'complete') \n     AND pdi_status IN ('finished', 'complete') \n     AND backtesting_status IN ('finished', 'complete') \n     AND modal2_synthesis_status IN ('finished', 'complete')\n    THEN 'finished'\n\n    -- PRIORITY 3: RUNNING\n    -- If not failed and not finished, it's still running.\n    ELSE 'running'\nEND\nWHERE \n    -- Optimization: Only run the update if the status is actually changing.\n    portfolio_status IS DISTINCT FROM CASE\n        WHEN fdi_status IN ('failed', 'error') \n          OR pdi_status IN ('failed', 'error') \n          OR backtesting_status IN ('failed', 'error') \n          OR modal2_synthesis_status IN ('failed', 'error')\n        THEN 'failed'\n\n        WHEN fdi_status IN ('finished', 'complete') \n         AND pdi_status IN ('finished', 'complete') \n         AND backtesting_status IN ('finished', 'complete') \n         AND modal2_synthesis_status IN ('finished', 'complete')\n        THEN 'finished'\n\n        ELSE 'running'\n    END;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b276ba99-44b5-4620-a32d-bcf8aac1b1a6",
+      "name": "Master SQL Query",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Master SQL Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e627e23b-00a9-45a7-8e4c-9d10489b8b73",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"
+  },
+  "id": "83dJ9nYPG1PSLptr",
+  "tags": []
+}

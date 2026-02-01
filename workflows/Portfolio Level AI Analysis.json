@@ -1,0 +1,263 @@
+{
+  "name": "Portfolio Level AI Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "portfolio-ai-analysis",
+        "options": {}
+      },
+      "id": "b6a136ab-600b-48f3-bafa-e5976fc285f9",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        176,
+        -128
+      ],
+      "webhookId": "portfolio-analysis-trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  p.id as portfolio_id,\n  p.name as portfolio_name,\n  p.thesis,\n  tr.ticker,\n  tr.company_name,\n  br.total_return_pct,\n  br.sharpe_ratio,\n  br.max_drawdown,\n  ffm.alpha,\n  ffm.beta_market,\n  ffm.beta_smb,\n  ffm.beta_hml,\n  td.raw_tickerinfo,\n  pd.patent_count,\n  pd.summary_payload\nFROM portfolios p\nJOIN track_requests tr ON p.id = tr.portfolio_id\nLEFT JOIN backtest_results br ON tr.request_id = br.request_id\nLEFT JOIN ffm_results ffm ON tr.request_id = ffm.request_id\nLEFT JOIN patent_data pd ON tr.request_id = pd.request_id\nLEFT JOIN ticker_data td ON tr.request_id = td.request_id\nWHERE p.id = $1::uuid;",
+        "options": {
+          "queryReplacement": "={{ $('Webhook Trigger').item.json.body.portfolio_id }}"
+        }
+      },
+      "id": "66a41568-7777-46f1-9a99-19f789de229f",
+      "name": "Fetch Portfolio & Tickers",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        640,
+        -128
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Helper to format large numbers (e.g. 372884439040 -> $372.88B)\nfunction formatMarketCap(num) {\n    if (!num) return \"N/A\";\n    if (num >= 1.0e+12) return \"$\" + (num / 1.0e+12).toFixed(2) + \"T\";\n    if (num >= 1.0e+9) return \"$\" + (num / 1.0e+9).toFixed(2) + \"B\";\n    if (num >= 1.0e+6) return \"$\" + (num / 1.0e+6).toFixed(2) + \"M\";\n    return \"$\" + num;\n}\n\n// Aggregate multiple rows (tickers) into a single context object for the AI\nconst items = $input.all();\nif (items.length === 0) return [{json: {error: \"No data found\"}}];\n\n// Portfolio Metadata\nconst portfolio = {\n  id: items[0].json.portfolio_id,\n  name: items[0].json.portfolio_name,\n  thesis: items[0].json.thesis || \"No thesis provided.\"\n};\n\n// Format Ticker Data (Enhanced with Business Summary & Patents)\nconst tickers = items.map(item => {\n  const i = item.json;\n  \n  // --- 1. PARSE FINANCIALS & SUMMARY ---\n  const tInfo = i.raw_tickerinfo || {};\n  \n  // Handle Summary (Cut off at 600 chars to save tokens but keep context)\n  const businessSummary = tInfo.longBusinessSummary \n      ? tInfo.longBusinessSummary.substring(0, 600) + (tInfo.longBusinessSummary.length > 600 ? \"...\" : \"\")\n      : \"No business summary available.\";\n\n  const sector = tInfo.sector || \"Unknown Sector\";\n  const mktCap = formatMarketCap(tInfo.marketCap);\n  const peRatio = tInfo.forwardPE ? parseFloat(tInfo.forwardPE).toFixed(2) : \"N/A\";\n\n  // --- 2. PARSE PATENT DATA ---\n  let patentSummary = \"No patent analysis available\";\n  if (i.patent_summary) {\n      if (typeof i.patent_summary === 'string') {\n          patentSummary = i.patent_summary;\n      } else if (i.patent_summary.analysis) {\n          patentSummary = i.patent_summary.analysis;\n      } else {\n          // Fallback: Dump object if structure is unknown\n          patentSummary = JSON.stringify(i.patent_summary);\n      }\n  }\n\n  // --- 3. BUILD RICH REPORT ---\n  return `\n  === REPORT FOR ${i.ticker} (${i.company_name || 'N/A'}) ===\n\n  [1] FINANCIAL CONTEXT\n  - Sector: ${sector}\n  - Market Cap: ${mktCap} | Forward P/E: ${peRatio}\n  - Summary: ${businessSummary}\n\n  [2] QUANTITATIVE PERFORMANCE\n  - Return: ${parseFloat(i.total_return_pct || 0).toFixed(2)}%\n  - Sharpe Ratio: ${parseFloat(i.sharpe_ratio || 0).toFixed(2)}\n  - Max Drawdown: ${parseFloat(i.max_drawdown || 0).toFixed(2)}%\n  - Alpha: ${parseFloat(i.alpha || 0).toFixed(4)} | Beta: ${parseFloat(i.beta_market || 0).toFixed(2)}\n\n  [3] IP & INNOVATION (PATENTS)\n  - Total Patents: ${i.patent_count || 0}\n  - AI Synthesis of IP: ${patentSummary}`;\n}).join(\"\\n\\n-----------------------------------\\n\\n\");\n\n// Simple Aggregates for Context\n// (Added parseFloat to ensure math works even if DB returns strings)\nconst avgSharpe = items.reduce((sum, item) => sum + (parseFloat(item.json.sharpe_ratio) || 0), 0) / items.length;\nconst avgReturn = items.reduce((sum, item) => sum + (parseFloat(item.json.total_return_pct) || 0), 0) / items.length;\n\nreturn [{\n  json: {\n    portfolio_id: portfolio.id,\n    portfolio_name: portfolio.name,\n    thesis: portfolio.thesis,\n    ticker_count: items.length,\n    aggregated_stats: {\n      avg_sharpe: avgSharpe.toFixed(2),\n      avg_return: avgReturn.toFixed(2) + \"%\"\n    },\n    components_context: tickers\n  }\n}];"
+      },
+      "id": "1977a66d-81a7-48f5-ab10-6dd3f20afcdf",
+      "name": "Format Data for AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a Senior Portfolio Manager & Risk Analyst. \nYour job is to analyze a portfolio of stocks against a specific investment thesis.\n\nOUTPUT REQUIREMENTS:\n- Return ONLY valid JSON.\n- Do not include markdown formatting (```json).\n- Follow the exact schema provided.",
+              "role": "system"
+            },
+            {
+              "content": "=Analyze the following portfolio:\n\n=== PORTFOLIO METADATA ===\nName: {{ $json.portfolio_name }}\nThesis: \"{{ $json.thesis }}\"\n\n=== AGGREGATE STATS ===\nAvg Sharpe: {{ $json.aggregated_stats.avg_sharpe }}\nAvg Return: {{ $json.aggregated_stats.avg_return }}\n\n=== COMPONENT DATA ===\n{{ $json.components_context }}\n\n=== TASK ===\nGenerate a JSON object with these 5 keys:\n1. portfolio_bull_case (string): Why this portfolio will succeed based on the data and thesis.\n2. portfolio_bear_case (string): The primary risks and failure points (e.g. high correlation, low sharpe, lack of innovation).\n3. ai_risk_flag (string): \"LOW\", \"MEDIUM\", or \"HIGH\" followed by a short reason.\n4. ai_valuation_assessment (string): Are these assets justifying their risk? (Undervalued/Overvalued/Fair).\n5. analyst_recommendation_badge (string): EXACTLY one of: \"STRONG_BUY\", \"BUY\", \"HOLD\", \"SELL\", \"STRONG_SELL\".\n\nReturn JSON only."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c4492058-1b51-4a25-95eb-b26db2e829fa",
+      "name": "AI Portfolio Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        -128
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "8dc8qKRWWImiYlCw",
+          "name": "OpenAi account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean and Parse JSON from AI\nconst aiText = $json.message.content;\n\nlet cleanText = aiText\n  .replace(/^```json\\s*/i, \"\")\n  .replace(/^```/i, \"\")\n  .replace(/```$/i, \"\")\n  .trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleanText);\n} catch (e) {\n  throw new Error(\"Failed to parse AI JSON: \" + cleanText);\n}\n\n// Pass forward along with ID\nreturn [{\n  json: {\n    portfolio_id: $('Format Data for AI').item.json.portfolio_id,\n    ai_summary: parsed\n  }\n}];"
+      },
+      "id": "0aecc887-3575-4ded-be08-deb5a294bc29",
+      "name": "Parse AI JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE portfolios\nSET ai_portfolio_summary = $1, \n    modal2_synthesis_status = 'finished'\nWHERE id = $2::uuid;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.ai_summary) }}, {{ $json.portfolio_id }}"
+        }
+      },
+      "id": "44bb0a21-011e-4d2b-b4b1-fa74d220a6a9",
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1616,
+        -128
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n  JSON.stringify({\n    \"success\": true,\n    \"portfolio_id\": $json.portfolio_id,\n    \"analysis\": $json.ai_summary\n  })\n}}",
+        "options": {}
+      },
+      "id": "08c8d255-1b39-4866-b597-dfb1822f9743",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE portfolios \nSET modal2_synthesis_status = 'processing' \nWHERE id = $1::uuid;",
+        "options": {
+          "queryReplacement": "={{ $json.body.portfolio_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        400,
+        -128
+      ],
+      "id": "95e2d987-c20f-4b23-b02f-418c52551beb",
+      "name": "Set Status Processing",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Status Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Portfolio & Tickers": {
+      "main": [
+        [
+          {
+            "node": "Format Data for AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data for AI": {
+      "main": [
+        [
+          {
+            "node": "AI Portfolio Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Portfolio Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse AI JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI JSON": {
+      "main": [
+        [
+          {
+            "node": "Save to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status Processing": {
+      "main": [
+        [
+          {
+            "node": "Fetch Portfolio & Tickers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 180,
+    "availableInMCP": false,
+    "errorWorkflow": "U3NUQJroffjAV9is"
+  },
+  "versionId": "307c3b4b-fbfd-42c3-a90d-51a178b782cd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"
+  },
+  "id": "f8p0UsaWacBKYj56",
+  "tags": []
+}
