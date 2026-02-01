@@ -187,7 +187,7 @@ While traditional asset management struggles with fee compression and informatio
 **Program Highlights:**
 - 🏅 Top 8 team selected from 50+ submissions
 - 💼 Mentorship from ODDO BHF senior portfolio managers
-- 🌍 International collaboration (Saarland University × SouthwestX × Triathlon)
+- 🌍 International collaboration (Saarland University x WHU × SouthwestX × Triathlon x ODDO BHF)
 
 ---
 
