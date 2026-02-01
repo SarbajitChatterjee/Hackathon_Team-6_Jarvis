@@ -1,0 +1,463 @@
+{
+  "name": "Team6_Jarvis_Agent-Dispatcher: Portfolio to Requests",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "c1181c25-0e1c-4b40-8163-e26039648638",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        80
+      ],
+      "id": "64f94b6e-695e-43b7-8704-67a8ffdfb2e9",
+      "name": "Supabase Webhook",
+      "webhookId": "c1181c25-0e1c-4b40-8163-e26039648638"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "portfolios",
+          "mode": "list",
+          "cachedResultName": "portfolios"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.portfolio_id }}",
+            "ticker_count": "={{ $json.ticker_count }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "input_tickers",
+              "displayName": "input_tickers",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "thesis",
+              "displayName": "thesis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ticker_count",
+              "displayName": "ticker_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1344,
+        80
+      ],
+      "id": "7092719b-e107-4564-8abc-1f162fe1461b",
+      "name": "Update status in portfolios DB",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "track_requests",
+          "mode": "list",
+          "cachedResultName": "track_requests"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ticker": "={{ $('Split the array').item.json.ticker }}",
+            "portfolio_id": "={{ $('Split the array').item.json.portfolio_id }}",
+            "start_date": "={{ $json.start_date.toString().slice(0, 10) }}",
+            "end_date": "={{ $json.end_date.toString().slice(0, 10) }}",
+            "company_name": "={{ $json.company_name }}",
+            "ticker_status": "={{ $('Split the array').item.json.status }}",
+            "financial_analysis_status": "processing",
+            "patent_analysis_status": "processing"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "request_id",
+              "displayName": "request_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ticker",
+              "displayName": "ticker",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ticker_status",
+              "displayName": "ticker_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "completed_at",
+              "displayName": "completed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_log",
+              "displayName": "error_log",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "portfolio_id",
+              "displayName": "portfolio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "end_date",
+              "displayName": "end_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "financial_analysis_status",
+              "displayName": "financial_analysis_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "patent_analysis_status",
+              "displayName": "patent_analysis_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        896,
+        80
+      ],
+      "id": "7356231f-2b55-4997-a220-84cddfb89da0",
+      "name": "Insert requests in track_request DB",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate the multiple insert results back to one portfolio update\nconst ticker_count = items.length; // Count how many items were inserted\nconst portfolio_id = items[0].json.portfolio_id; // Get portfolio_id from first item\n\nreturn [{\n  json: {\n    portfolio_id: portfolio_id,\n    ticker_count: ticker_count,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        80
+      ],
+      "id": "d8d8b4df-333d-4dde-b556-a06f6c289261",
+      "name": "Pass Ticker_count"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Supabase webhook delivers the new row here:\nconst rec = items[0].json.body?.record;\n// Validate\nif (!rec || !Array.isArray(rec.input_tickers)) {\n  return [];\n}\n// Clean tickers\nconst tickers = rec.input_tickers\n  .map(t => String(t).trim())\n  .filter(Boolean);\n\nconst ticker_count = tickers.length;\nconst start_date = rec.start_date;            // New additions\nconst end_date = rec.end_date;                // New additions\n\n// Fan-out: 1 ticker = 1 output item\nreturn tickers.map(ticker => ({\n  json: {\n    portfolio_id: rec.id,\n    ticker,\n    ticker_count,\n    start_date,\n    end_date,\n    // status: 'pending'               // To handle this lifecycle later\n    status: 'processing'\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        80
+      ],
+      "id": "c92e4e76-21c7-4603-8556-87fd98a34086",
+      "name": "Split the array"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://18.185.63.202:8000/company/name",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ticker\": \"{{ $json.ticker }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        464,
+        -96
+      ],
+      "id": "0b8da987-cb77-493d-b959-0add8e4c6452",
+      "name": "Resolve Ticker name"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "ticker",
+        "joinMode": "keepEverything",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        64
+      ],
+      "id": "037a01df-8b3c-4d12-a217-6ab25f26a79b",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "content": "## Delete the trigger \"check_request_completion()\" in DB when backtest is working\n",
+        "height": 80,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        32,
+        -224
+      ],
+      "typeVersion": 1,
+      "id": "c08ee5f6-d408-49b4-9cf9-8add0ddf8a78",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Supabase Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split the array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert requests in track_request DB": {
+      "main": [
+        [
+          {
+            "node": "Pass Ticker_count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pass Ticker_count": {
+      "main": [
+        [
+          {
+            "node": "Update status in portfolios DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split the array": {
+      "main": [
+        [
+          {
+            "node": "Resolve Ticker name",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Resolve Ticker name": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Insert requests in track_request DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0489456d-e322-4f13-8c7e-62f0910c7255",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"
+  },
+  "id": "39vAUGsQioLDTl5k",
+  "tags": []
+}

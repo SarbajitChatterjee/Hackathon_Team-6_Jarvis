@@ -1,0 +1,61 @@
+graph LR
+    subgraph DATA["<b>DATA SOURCES</b>"]
+        direction TB
+        A1["📊 <b>Financial Markets</b><br/><small>Yahoo Finance → Bloomberg</small>"]
+        A2["🔬 <b>Patent Intelligence</b><br/><small>PatentsView US Database</small>"]
+        A3["📰 <b>Alternative Data</b><br/><small>News & Sentiment</small>"]
+    end
+    
+    subgraph JARVIS["<b>JARVIS AI ENGINE</b>"]
+        direction LR
+        B1["📥 <b>Data Ingestion</b><br/><small>Automated Collection</small>"]
+        B2["🧠 <b>AI Analysis</b><br/><small>GPT-4 Processing</small>"]
+        B3["📊 <b>Quantitative Models</b><br/><small>Fama-French & Backtesting</small>"]
+        
+        B1 --> B2
+        B2 --> B3
+    end
+    
+    subgraph DB["<b>INTELLIGENT DATABASE</b>"]
+        C1[("<b>🗄️ Supabase PostgreSQL</b><br/><small>Structured Intelligence</small>")]
+    end
+    
+    subgraph PM["<b>PORTFOLIO MANAGERS</b>"]
+        direction LR
+        D1["📈 <b>Investment Dashboard</b><br/><small>Real-time Insights</small>"]
+        D2["✅ <b>Human Oversight</b><br/><small>Transparent AI Reasoning</small>"]
+        
+        D1 --> D2
+    end
+    
+    subgraph VALUE["<b>MEASURABLE VALUE</b>"]
+        direction TB
+        E1["⚡ <b>95% Faster Analysis</b><br/><small>20-30 seconds vs hours</small>"]
+        E2["🎯 <b>+2.5% Alpha Target</b><br/><small>AI-Assisted Stock Selection</small>"]
+        E3["💰 <b>19% Cost Reduction</b><br/><small>Automated Research Efficiency</small>"]
+        E4["🔍 <b>Transparent AI Logic</b><br/><small>Traceable & Reviewable Results</small>"]
+    end
+    
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    
+    B3 --> C1
+    C1 --> D1
+    
+    D2 --> E1
+    D2 --> E2
+    D2 --> E3
+    D2 --> E4
+    
+    classDef dataSource fill:#E3F2FD,stroke:#1976D2,stroke-width:2.5px,color:#000,rx:10,ry:10
+    classDef aiEngine fill:#FFF3E0,stroke:#F57C00,stroke-width:2.5px,color:#000,rx:10,ry:10
+    classDef database fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2.5px,color:#000,rx:10,ry:10
+    classDef portfolio fill:#E8F5E9,stroke:#388E3C,stroke-width:2.5px,color:#000,rx:10,ry:10
+    classDef value fill:#FFEBEE,stroke:#D32F2F,stroke-width:2.5px,color:#000,rx:10,ry:10
+    
+    class A1,A2,A3 dataSource
+    class B1,B2,B3 aiEngine
+    class C1 database
+    class D1,D2 portfolio
+    class E1,E2,E3,E4 value

@@ -1,0 +1,131 @@
+sequenceDiagram
+    autonumber
+    
+    participant User as 👤 User<br/>(Frontend)
+    participant DB as 🗄️ Database<br/>(Supabase)
+    participant Dispatcher as 📋 Dispatcher<br/>(Workflow Orchestrator)
+    participant MarketAPI as 📊 Market Data Service
+    participant FDI as 💰 Financial Data<br/>Ingestion
+    participant PDI as 🔬 Patent Data<br/>Ingestion
+    participant PatentAPI as 🏛️ PatentsView
+    participant AI as 🤖 AI Analysis<br/>(GPT-4o)
+    participant FFM as 📈 Quantitative<br/>Analysis Engine
+    
+    rect rgb(230, 240, 255)
+        Note over User,FFM: PHASE 1: Portfolio Setup & Dispatch
+        User->>DB: Create Portfolio<br/>(tickers, dates, thesis)
+        activate DB
+        DB->>DB: Initialize Status Tracking
+        DB-->>Dispatcher: Trigger: New Portfolio
+        deactivate DB
+        
+        activate Dispatcher
+        Dispatcher->>MarketAPI: Resolve Company Names
+        MarketAPI-->>Dispatcher: Company Metadata
+        
+        loop For Each Ticker
+            Dispatcher->>DB: Create Tracking Request
+        end
+        
+        Dispatcher->>DB: Update Portfolio Count
+        DB-->>FDI: Trigger: Start Analysis
+        deactivate Dispatcher
+    end
+    
+    rect rgb(240, 255, 240)
+        Note over User,FFM: PHASE 2: Parallel Data Acquisition
+        
+        par Financial Data Stream
+            activate FDI
+            FDI->>DB: Mark Financial: Running
+            FDI->>MarketAPI: Fetch OHLCV + Fundamentals
+            activate MarketAPI
+            Note over MarketAPI: Multi-Source Strategy:<br/>yFinance → FinViz → AlphaVantage
+            MarketAPI-->>FDI: Price History + Company Data
+            deactivate MarketAPI
+            FDI->>DB: Store Financial Data
+            FDI->>DB: Mark Financial: Complete
+            FDI-->>PDI: Trigger: Patent Analysis
+            deactivate FDI
+            
+        and Patent Intelligence Stream
+            activate PDI
+            PDI->>DB: Fetch Company Details
+            PDI->>DB: Mark Patent: Running
+            PDI->>PatentAPI: Search Patents by Company
+            activate PatentAPI
+            PatentAPI-->>PDI: Patent Portfolio
+            deactivate PatentAPI
+            
+            PDI->>AI: Analyze Innovation Strategy
+            activate AI
+            Note over AI: Deep Tech VC Analysis:<br/>Innovation Quality<br/>Commercial Readiness<br/>IP Moat Assessment
+            AI-->>PDI: Strategic Insights
+            deactivate AI
+            
+            PDI->>DB: Store Patent Analysis
+            PDI->>DB: Mark Patent: Complete
+            deactivate PDI
+        end
+        
+        DB->>DB: Check Portfolio Progress
+        alt All Tickers Ingested
+            DB->>DB: Mark Data Ingestion: Finished
+        end
+    end
+    
+    rect rgb(255, 250, 240)
+        Note over User,FFM: PHASE 3: Quantitative Modeling
+        
+        DB-->>FFM: Trigger: Start Quantitative Analysis
+        activate FFM
+        FFM->>DB: Fetch Market Data
+        DB-->>FFM: OHLCV Time Series
+        
+        par Factor Model Analysis
+            FFM->>FFM: Fama-French 3-Factor Model
+            Note over FFM: Calculate:<br/>Alpha, Market Beta<br/>Size & Value Factors
+            FFM->>DB: Store Factor Results
+        and Strategy Backtesting
+            FFM->>FFM: Moving Average Strategy
+            Note over FFM: Performance Metrics:<br/>Sharpe Ratio<br/>Maximum Drawdown<br/>Total Returns
+            FFM->>DB: Store Backtest Results
+        end
+        
+        FFM->>DB: Mark Quantitative: Complete
+        deactivate FFM
+    end
+    
+    rect rgb(255, 240, 245)
+        Note over User,FFM: PHASE 4: Status Aggregation
+        
+        DB->>DB: Auto-Trigger: Check Completion
+        Note over DB: Database Logic:<br/>IF financial = complete<br/>AND patent = complete<br/>AND quantitative = complete<br/>THEN ticker_status = complete
+        
+        DB->>DB: Portfolio-Level Aggregation
+        alt All Tickers Complete
+            DB->>DB: Mark Portfolio: Finished
+            Note over DB: Ready for User Dashboard
+        end
+    end
+    
+    rect rgb(250, 245, 255)
+        Note over User,FFM: PHASE 5: Portfolio Synthesi
+        
+        opt AI Portfolio Report
+            activate AI
+            DB->>AI: Aggregate All Ticker Data
+            AI->>AI: Cross-Ticker Analysis
+            Note over AI: Portfolio Insights:<br/>Sector Diversification<br/>Risk-Adjusted Performance<br/>Strategic Recommendations
+            AI->>DB: Store Portfolio Summary
+            deactivate AI
+            DB->>DB: Mark Synthesis: Complete
+        end
+    end
+    
+    rect rgb(230, 245, 255)
+        Note over User,FFM: USER DASHBOARD: Results Visualization
+        User->>DB: Query Portfolio Status
+        DB-->>User: Dashboard Data
+        Note over User: View Results:<br/>✓ Financial Metrics<br/>✓ Patent Intelligence<br/>✓ Quantitative Performance<br/>✓ AI Recommendations
+    end
