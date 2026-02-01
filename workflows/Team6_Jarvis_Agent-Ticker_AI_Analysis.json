@@ -1,0 +1,331 @@
+{
+  "name": "Team6_Jarvis_Agent-Ticker_AI_Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ticker-ai-analysis",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5f58204f-4c41-4f55-8ff0-ba9307fc6e55",
+      "name": "Webhook Trigger",
+      "webhookId": "d4d9850c-57a5-4389-8981-7736e107d765"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n     tr.request_id,\n     tr.ticker,\n     tr.company_name,\n     tr.portfolio_id,\n     ffm.alpha,\n     ffm.beta_market,\n     ffm.beta_smb,\n     ffm.beta_hml,\n     br.sharpe_ratio,\n     br.max_drawdown,\n     br.total_return_pct,\n     br.initial_value,\n     br.strategy_params,\n     ffm.r_squared,\n     pd.summary_payload as patent_summary,\n     pd.patent_count\n   FROM track_requests tr\n   LEFT JOIN backtest_results br ON tr.request_id = br.request_id\n   LEFT JOIN ffm_results ffm ON tr.request_id = ffm.request_id\n   LEFT JOIN patent_data pd ON tr.request_id = pd.request_id\n   WHERE tr.request_id = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.body.request_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        256,
+        0
+      ],
+      "id": "911a84b5-1c63-4762-8402-5a0ffb9aa17a",
+      "name": "Fetch Complete Ticker Data",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=TICKER: {{ $json.ticker }} ({{ $json.company_name }})\n\n=== FAMA-FRENCH FACTOR EXPOSURE ===\nAlpha (Annualized): {{ $json.alpha }}\nBeta (Market): {{ $json.beta_market }}\nBeta (SMB - Size): {{ $json.beta_smb }}\nBeta (HML - Value): {{ $json.beta_hml }}\nR-Squared: {{ $json.r_squared }}\n\n=== BACKTEST PERFORMANCE ===\nSharpe Ratio: {{ $json.sharpe_ratio }}\nMax Drawdown: {{ $json.max_drawdown }}%\nTotal Return: {{ $json.total_return_pct }}%\nInitial Capital: ${{ $json.initial_value }}\nStrategy: {{ JSON.stringify($json.strategy_params) }}\n\n=== PATENT INNOVATION PROFILE ===\nPatent Count: {{ $json.patent_count }}\nInnovation Analysis:\n{{ JSON.stringify($json.patent_summary, null, 2) }}\n\n=== ANALYSIS TASKS ===\nGenerate the following in structured JSON:\n\n1. executive_summary (150-200 words):\n   - Synthesize FFM, backtest, and patent signals\n   - Highlight key investment drivers\n   - Note critical risks\n\n2. factor_interpretation (object):\n   {\n     \"alpha_signal\": \"What does the alpha tell us? Skill vs luck?\",\n     \"market_exposure\": \"Beta interpretation - defensive/aggressive?\",\n     \"size_tilt\": \"SMB beta - small cap or large cap exposure?\",\n     \"value_tilt\": \"HML beta - growth or value orientation?\",\n     \"model_fit\": \"R² interpretation - how well explained by factors?\"\n   }\n\n3. backtest_narrative (object):\n   {\n     \"risk_adjusted_view\": \"Sharpe ratio context and interpretation\",\n     \"downside_protection\": \"Max drawdown analysis - acceptable risk?\",\n     \"return_quality\": \"Are returns consistent or volatile?\"\n   }\n\n4. patent_investment_impact (object):\n   {\n     \"innovation_edge\": \"How does R&D translate to competitive advantage?\",\n     \"revenue_potential\": \"Commercial readiness and monetization path\",\n     \"moat_durability\": \"Defensibility of IP portfolio\",\n     \"litigation_exposure\": \"Patent risk and legal vulnerabilities\"\n   }\n\n5. integrated_recommendation (object):\n   {\n     \"rating\": \"STRONG_BUY | BUY | HOLD | SELL | STRONG_SELL\",\n     \"conviction_level\": \"HIGH | MEDIUM | LOW\",\n     \"bull_case_thesis\": \"Why this could outperform (2-3 sentences)\",\n     \"bear_case_thesis\": \"Why this could underperform (2-3 sentences)\",\n     \"key_catalysts\": [\"catalyst 1\", \"catalyst 2\", \"catalyst 3\"],\n     \"key_risks\": [\"risk 1\", \"risk 2\", \"risk 3\"]\n   }\n\n6. valuation_context (object):\n   {\n     \"relative_value\": \"Cheap, fair, or expensive vs peers?\",\n     \"factor_premium_justified\": \"Does performance justify risk exposure?\",\n     \"innovation_premium\": \"Should patent strength command higher multiple?\"\n   }\n\nReturn ONLY the JSON structure. No markdown formatting."
+            },
+            {
+              "role": "system",
+              "content": "You are a senior equity research analyst specializing in quantitative factor analysis and patent-driven investment intelligence.\n\nYour task is to generate a comprehensive AI analysis for a SINGLE ticker based on:\n1. Fama-French 3-Factor Model results (Alpha, Beta exposures, R²)\n2. Backtest performance (Sharpe, drawdown, returns)\n3. Patent innovation analysis (quality, moat, strategic trends)\n\nOUTPUT REQUIREMENTS:\n- Return ONLY valid JSON (no markdown, no preamble)\n- Structure must match the schema provided\n- Be specific and quantitative where possible\n- Maintain analytical rigor"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        496,
+        0
+      ],
+      "id": "66437a57-71b3-4181-99e2-f698c5e8edd6",
+      "name": "AI Ticker Analysis",
+      "credentials": {
+        "openAiApi": {
+          "id": "8dc8qKRWWImiYlCw",
+          "name": "OpenAi account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and attach request_id for database update\n   const aiText = $json?.output?.[0]?.content?.find(c => c.type === \"output_text\")?.text\n     ?? $json?.output?.[0]?.content?.[0]?.text\n     ?? $json?.text\n     ?? $json?.response\n     ?? \"\";\n\n   if (!String(aiText).trim()) {\n     throw new Error(\"Could not find AI text in response\");\n   }\n\n   // Clean markdown fences\n   let cleanText = String(aiText)\n     .trim()\n     .replace(/^```(?:json)?\\s*/i, \"\")\n     .replace(/```$/i, \"\")\n     .trim();\n\n   // Parse JSON\n   let aiAnalysis;\n   try {\n     aiAnalysis = JSON.parse(cleanText);\n   } catch (e) {\n     throw new Error(\"AI output is not valid JSON. First 300 chars:\\n\" + cleanText.slice(0, 300));\n   }\n\n   // Get request_id from the Fetch node\n   const request_id = $('Fetch Complete Ticker Data').item.json.request_id;\n\n   if (!request_id) {\n     throw new Error(\"Missing request_id from input data\");\n   }\n\n   return [{\n     json: {\n       request_id: request_id,\n       ai_analysis_payload: aiAnalysis,\n       updated_at: new Date().toISOString()\n     }\n   }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        0
+      ],
+      "id": "2ed86793-0962-45c8-b167-0ff3821ef590",
+      "name": "Parse AI JSON Response"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "backtest_results",
+          "mode": "list",
+          "cachedResultName": "backtest_results"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $json.request_id }}",
+            "ai_analysis_payload": "={{ JSON.stringify($json.ai_analysis_payload) }}"
+          },
+          "matchingColumns": [
+            "request_id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "request_id",
+              "displayName": "request_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ticker",
+              "displayName": "ticker",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "sharpe_ratio",
+              "displayName": "sharpe_ratio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "max_drawdown",
+              "displayName": "max_drawdown",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "plot_data",
+              "displayName": "plot_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ai_analysis_payload",
+              "displayName": "ai_analysis_payload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "initial_value",
+              "displayName": "initial_value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "total_return_pct",
+              "displayName": "total_return_pct",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "strategy_params",
+              "displayName": "strategy_params",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1056,
+        0
+      ],
+      "id": "e87d4764-7565-4f87-af97-a9076c3cad66",
+      "name": "Update Backtest with AI Analysis",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const request_id = $json.request_id;\n   const ticker = $('Fetch Complete Ticker Data').item.json.ticker;\n   \n   console.log(`✅ Ticker AI Analysis Complete: ${ticker} (${request_id})`);\n   \n   return [{\n     json: {\n       success: true,\n       request_id: request_id,\n       ticker: ticker,\n       message: 'AI analysis completed successfully'\n     }\n   }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        0
+      ],
+      "id": "a8165d3f-46c9-4301-8d31-69e454807906",
+      "name": "Log Success"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Complete Ticker Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Complete Ticker Data": {
+      "main": [
+        [
+          {
+            "node": "AI Ticker Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Ticker Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse AI JSON Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI JSON Response": {
+      "main": [
+        [
+          {
+            "node": "Update Backtest with AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Backtest with AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "14581031-4da0-4bc1-8312-e94414a1af12",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"
+  },
+  "id": "LtiPxTTpgxmNscOu",
+  "tags": []
+}

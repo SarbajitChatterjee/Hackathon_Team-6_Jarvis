@@ -1,0 +1,361 @@
+{
+  "name": "System - Global Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        64
+      ],
+      "id": "acc804ef-6305-46ac-a234-9ab55a3b7146",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.failed_workflow }}",
+                    "rightValue": "FDI",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "52fa0d3b-ef05-4c7b-b927-88f16bbc7135"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b047ccbc-111a-4630-9969-7600e5f36f23",
+                    "leftValue": "={{ $json.failed_workflow }}",
+                    "rightValue": "PDI",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c6eee958-3ef0-4820-880e-0d89f53a0ee3",
+                    "leftValue": "={{ $json.failed_workflow }}",
+                    "rightValue": "Backtesting",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8a6227a9-0492-402c-8fcb-03b59dcd253c",
+                    "leftValue": "={{ $json.failed_workflow }}",
+                    "rightValue": "Pipeline",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7312dc36-75ee-4dbe-9003-124a029403ff",
+                    "leftValue": "={{ $json.failed_workflow }}",
+                    "rightValue": "Portfolio Level AI Analysis",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        16
+      ],
+      "id": "2d478764-b329-4364-8dfd-d8378a95bd44",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE track_requests\nSET patent_analysis_status = 'failed',\n    error_log = $1\nWHERE request_id = $2::uuid;",
+        "options": {
+          "queryReplacement": "={{ $json.error_message }}, {{ $json.target_request_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        -128
+      ],
+      "id": "ce520d16-b90f-4d31-ba5c-96056a30f4ac",
+      "name": "Update PDI in track_request",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE track_requests\nSET financial_analysis_status = 'failed',\n    error_log = $1\nWHERE request_id = $2::uuid;",
+        "options": {
+          "queryReplacement": "={{ $json.error_message }}, {{ $json.target_request_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        -320
+      ],
+      "id": "2b884481-eebf-42e1-9b49-d4b39bdac639",
+      "name": "Update FDI in track_request",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE track_requests\nSET backtest_status = 'failed',\n    error_log = $1\nWHERE request_id = $2::uuid;",
+        "options": {
+          "queryReplacement": "={{ $json.error_message }}, {{ $json.target_request_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        64
+      ],
+      "id": "df0ac317-f2d8-44bd-bb2b-5481378a5963",
+      "name": "Update Backtest in track_request",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE track_requests\nSET ffm_status = 'failed',\n    error_log = $1\nWHERE request_id = $2::uuid;",
+        "options": {
+          "queryReplacement": "={{ $json.error_message }}, {{ $json.target_request_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        256
+      ],
+      "id": "a2f99937-f31e-44d5-878f-217455308169",
+      "name": "Update ffm_status in track_request",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE portfolios\nSET modal2_synthesis_status = 'failed',\n    error_log = $1\nWHERE id = $2::uuid;",
+        "options": {
+          "queryReplacement": "={{ $json.error_message }}, {{ $json.target_request_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        448
+      ],
+      "id": "3041b7f6-14f7-4245-b8b2-cf498c062300",
+      "name": "Update modal2_sythesis in portfolios",
+      "credentials": {
+        "postgres": {
+          "id": "0xg47XH7w5CugSut",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "87e57364-d3aa-421d-baab-786ba85ef953",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -320,
+        128
+      ],
+      "id": "d387d3e4-de1d-4ab6-8f35-ccdc9978835d",
+      "name": "Webhook",
+      "webhookId": "87e57364-d3aa-421d-baab-786ba85ef953"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the full error object\nconst root = $input.first();\nconst item = root.json;\n\n// --- 1. The Sherlock Holmes Function ---\n// Recursively searches the entire object tree for \"request_id\"\nfunction findRequestId(obj, depth = 0) {\n  if (!obj || typeof obj !== 'object' || depth > 5) return null;\n  \n  // Check immediate keys\n  if (obj.request_id) return obj.request_id;\n  if (obj.body && obj.body.request_id) return obj.body.request_id;\n  \n  // Search deeper\n  for (const key of Object.keys(obj)) {\n    // Skip huge internal n8n objects to save time\n    if (key === 'workflow' || key === 'stack') continue; \n    \n    const found = findRequestId(obj[key], depth + 1);\n    if (found) return found;\n  }\n  return null;\n}\n\n// --- 2. Execute Search ---\nlet requestId = findRequestId(item);\n\n// Fallback: If not found, try to grab it from the \"Input Data\" of the failing node if available\nif (!requestId && item.execution?.lastNodeExecuted) {\n   // Sometimes n8n puts the node name here, but not the data. \n   // This is just a fallback attempt.\n}\n\n// --- 3. Capture Error Message ---\nconst errorMsg = \n  item.execution?.error?.message || \n  item.message || \n  item.error?.message ||\n  \"Unknown System Error\";\n\n// --- 4. Return Clean Data ---\nreturn {\n  json: {\n    target_request_id: requestId, // This is what your Postgres node needs\n    error_message: errorMsg,\n    failed_workflow: item.workflow?.name || \"Unknown Workflow\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        64
+      ],
+      "id": "6d0b18fa-a792-4fd7-9df8-57e809d845ae",
+      "name": "Find ID"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Find ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Update FDI in track_request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update PDI in track_request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Backtest in track_request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update ffm_status in track_request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update modal2_sythesis in portfolios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find ID": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0f2215b9-ebf5-43b8-8d0f-0aa4319d2707",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "67fa74f828e3f09fdb2689b6ab6b68927a4afd45322609e659ec43e33a23922f"
+  },
+  "id": "U3NUQJroffjAV9is",
+  "tags": []
+}
