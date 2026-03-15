@@ -180,8 +180,6 @@ While traditional asset management struggles with fee compression and informatio
 ### Future Pioneers: Paris Edition
 **Selected for Finals** | ODDO BHF HQ | Jan 22-23, 2026
 
-<img src="https://via.placeholder.com/600x200/1a1a2e/00ff00?text=Future+Pioneers+Paris+Edition" alt="Future Pioneers" width="600"/>
-
 </div>
 
 **Program Highlights:**
@@ -196,25 +194,25 @@ While traditional asset management struggles with fee compression and informatio
 <table>
 <tr>
 <td width="25%" align="center">
-<img src="https://via.placeholder.com/150" width="100" style="border-radius: 50%"/><br/>
+<!-- <img src="https://via.placeholder.com/150" width="100" style="border-radius: 50%"/><br/> -->
 <b>Sarbajit Chatterjee</b><br/>
 <i>Product Architect</i><br/>
 System design, AI integration, scalability
 </td>
 <td width="25%" align="center">
-<img src="https://via.placeholder.com/150" width="100" style="border-radius: 50%"/><br/>
+<!-- <img src="https://via.placeholder.com/150" width="100" style="border-radius: 50%"/><br/> -->
 <b>Violet Si</b><br/>
 <i>Commercial Lead</i><br/>
 PM workflows, operating model
 </td>
 <td width="25%" align="center">
-<img src="https://via.placeholder.com/150" width="100" style="border-radius: 50%"/><br/>
+<!-- <img src="https://via.placeholder.com/150" width="100" style="border-radius: 50%"/><br/> -->
 <b>Mohamed Raslan</b><br/>
 <i>Financial Lead</i><br/>
 Alpha modeling, AUM dynamics
 </td>
 <td width="25%" align="center">
-<img src="https://via.placeholder.com/150" width="100" style="border-radius: 50%"/><br/>
+<!-- <img src="https://via.placeholder.com/150" width="100" style="border-radius: 50%"/><br/> -->
 <b>Rushan Mukherjee</b><br/>
 <i>AI Expert</i><br/>
 Backtesting, model explainability
@@ -230,18 +228,36 @@ Backtesting, model explainability
 
 <div align="center">
 
-*Coming Soon 🚧*
-  <!---
-### Dashboard Overview
-<img src="docs/screenshots/screenshot1.png" alt="Dashboard" width="800"/>
+### <ins>Dashboard Overview</ins>
 
-### Portfolio Analysis
-<img src="docs/screenshots/screenshot2.png" alt="Analysis" width="800"/>
+<h4>Screenshot 1</h4>
+<img src="screenshots/Screenshot_10.png" alt="Dashboard" width="800"/>
+<br><br>
 
-### Patent Intelligence
-<img src="docs/screenshots/screenshot4.png" alt="Patents" width="800"/>
+<h4>Screenshot 2</h4>
+<img src="screenshots/Screenshot_11.png" alt="Dashboard" width="800"/>
+<br><br>
 
---->
+<h4>Screenshot 3</h4>
+<img src="screenshots/Screenshot_12.png" alt="Dashboard" width="800"/>
+<br><br>
+<h4>Screenshot 4</h4>
+<img src="screenshots/Screenshot_13.png" alt="Dashboard" width="800"/>
+<br><br>
+
+### <ins>Patent Analysis</ins>
+<h4>Screenshot 5</h4>
+<img src="screenshots/Screenshot_20.png" alt="Patent" width="800"/>
+<br><br>
+
+### <ins>AI's observation</ins>
+
+<h4>Screenshot 6</h4>
+<img src="screenshots/Screenshot_30.png" alt="AI" width="800"/>
+<br><br>
+<h4>Screenshot 7</h4>
+<img src="screenshots/Screenshot_31.png" alt="AI" width="800"/>
+<br><br>
 
 </div>
 
