@@ -101,7 +101,7 @@ While traditional asset management struggles with fee compression and informatio
 }
 ```
 
-**Why This Matters:**
+**It helps in:**
 - 🎯 **Predictive Signal:** Patents filed today predict revenue 2-3 years ahead
 - 📚 **Academically Validated:** Citation-weighted patents correlate with firm market value ([Hall, Jaffe & Trajtenberg, 2004](https://www.nber.org/papers/w7741))
 - ⚡ **Scalable:** Analyze 10,000+ patents in minutes (impossible manually)
