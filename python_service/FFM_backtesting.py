@@ -1,4 +1,6 @@
 import os
+import io
+import base64
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from uuid import UUID
@@ -10,9 +12,16 @@ import backtrader as bt
 import statsmodels.api as sm
 import pandas_datareader.data as web
 
+# Matplotlib is kept specifically for the Fama-French scatter plot
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks, status
 from fastapi.responses import JSONResponse 
 from pydantic import BaseModel, Field
+
+import traceback
 
 # ==========================================
 # FASTAPI APP INITIALIZATION
@@ -22,6 +31,23 @@ app = FastAPI(
     description="API for Fama-French Model analysis and strategy backtesting",
     version="1.0.0"
 )
+
+# ==========================================
+# HELPER FUNCTIONS
+# ==========================================
+def generate_base64_plot(figure):
+    """Converts a Matplotlib figure to a base64 string"""
+    try:
+        buf = io.BytesIO()
+        figure.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        buf.seek(0)
+        img_str = base64.b64encode(buf.read()).decode('utf-8')
+        plt.close(figure)
+        return img_str
+    except Exception as e:
+        print(f"Error generating plot: {e}")
+        return None
+
 
 # ==========================================
 # DATA PROVIDER INTERFACE (Adapter Pattern)
@@ -303,12 +329,40 @@ def run_fama_french(df: pd.DataFrame, ticker: str) -> Optional[Dict[str, float]]
         print(f"   Beta: {model.params.get('Mkt-RF', 0):.4f}")
         print(f"   R²: {model.rsquared:.4f}")
         
+        # 4. Generate Regression Points (For interactive Frontend)
+        regression_points = []
+        for i in range(len(y)):
+            regression_points.append({
+                "mkt_rf": float(X.iloc[i]['Mkt-RF']),
+                "portfolio_excess": float(y.iloc[i]),
+                "period": str(y.index[i])
+            })
+
+        # 5. Generate Static Plot (Base64)
+        plt.figure(figsize=(10, 6))
+        predictions = model.predict(X)
+        plt.scatter(predictions, y, alpha=0.6, label='Data Points')
+        
+        min_val = min(y.min(), predictions.min())
+        max_val = max(y.max(), predictions.max())
+        plt.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Perfect Fit')
+        
+        plt.xlabel("Predicted Excess Return")
+        plt.ylabel("Actual Excess Return")
+        plt.title(f"Fama-French Model Fit (R²: {model.rsquared:.2f})")
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        ffm_plot_b64 = generate_base64_plot(plt.gcf())
+        
         return {
             "alpha": float(model.params.get('const', 0)),
             "beta_market": float(model.params.get('Mkt-RF', 0)),
             "beta_smb": float(model.params.get('SMB', 0)),
             "beta_hml": float(model.params.get('HML', 0)),
-            "r_squared": float(model.rsquared)
+            "r_squared": float(model.rsquared),
+            "ffm_plot": ffm_plot_b64,
+            "regression_points": regression_points
         }
     except Exception as e:
         print(f"FFM Error: {e}")
@@ -340,11 +394,43 @@ def run_backtest(df: pd.DataFrame, fast_ma: int = 10,
     
     # 🔥 OPTIMIZATION: Use only last 6 months for faster processing
     # 6 months ≈ 126 trading days (sufficient for MA strategy)
+
+        # Ensure required columns exist
+    required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Backtest missing required columns: {missing}")
+
+    # Cast to numeric (avoid string/inf/NaN edge cases)
+    df = df.astype({
+        "Open": float, "High": float, "Low": float,
+        "Close": float, "Volume": float
+    }, errors='raise')
+
+    # No NaN/inf
+    if not np.isfinite(df[['Open','High','Low','Close','Volume']].values).all():
+        raise ValueError("Backtest data contains non-finite values")
+
+    # Minimal row requirement: slow_ma + a buffer
+    min_rows = max(slow_ma, fast_ma) + 10  
+    if len(df) < min_rows:
+        raise ValueError(f"Not enough data points for MA strategy; need >= {min_rows}, got {len(df)}")
+
     if len(df) > 126:
         df = df.tail(126)
-        print(f"Optimized to last 126 rows for speed")
+    if len(df) < min_rows:
+        raise ValueError(f"Not enough rows after optimization; required {min_rows}, got {len(df)}")
     
     cerebro = bt.Cerebro()
+
+    print("=== Backtest data debug ===")
+    print("Rows:", len(df))
+    print("Columns:", df.columns.tolist())
+    print("Dtypes:\n", df.dtypes)
+    print("Head:\n", df.head(3))
+    print("Tail:\n", df.tail(3))
+    print("===========================")
+
     cerebro.adddata(bt.feeds.PandasData(dataname=df))
     cerebro.addstrategy(SimpleStrategy, fast=fast_ma, slow=slow_ma)
     cerebro.broker.setcash(initial_cash)
@@ -355,20 +441,70 @@ def run_backtest(df: pd.DataFrame, fast_ma: int = 10,
     
     # Run
     starting_value = cerebro.broker.getvalue()
-    results = cerebro.run()
+    try:
+        results = cerebro.run()
+    except Exception as e:
+        print("Backtest execution failed:", e)
+        traceback.print_exc()
+        raise
     final_value = cerebro.broker.getvalue()
     strat = results[0]
     
-    # Extract Metrics
+    # --- METRICS EXTRACTION ---
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio', 0.0)
-    if sharpe is None:
-        sharpe = 0.0
+    if sharpe is None: sharpe = 0.0
     
     max_dd = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0.0)
     total_return = ((final_value - starting_value) / starting_value) * 100
+
+    # --- JSON PLOT DATA GENERATION ---
+    raw_equity = strat.analyzers.recorder.get_analysis()
+    raw_returns = strat.analyzers.timereturn.get_analysis()
     
-    print(f"Backtest completed in optimized mode")
-    
+    # Calculate Benchmark (Buy & Hold)
+    start_price = df['Close'].iloc[0]
+    benchmark_data = {}
+    for date, row in df.iterrows():
+        val = (row['Close'] / start_price) * initial_cash
+        benchmark_data[date] = val
+
+    # Build 'equity_curve' list
+    equity_curve = []
+    for entry in raw_equity:
+        dt = entry['datetime']
+        bench_val = benchmark_data.get(dt, 0.0)
+        
+        # Fallback if keys mismatched slightly
+        if bench_val == 0.0:
+            try:
+                bench_val = (df.loc[dt]['Close'] / start_price) * initial_cash
+            except:
+                bench_val = initial_cash
+
+        equity_curve.append({
+            "datetime": dt.isoformat(),
+            "value": float(entry['value']),
+            "cash": float(entry['cash']),
+            "benchmark": float(bench_val)
+        })
+
+    # Build 'daily_returns' list
+    daily_returns_list = []
+    for date_key, ret_val in raw_returns.items():
+        daily_returns_list.append({
+            "datetime": date_key.isoformat(),
+            "return_pct": float(ret_val)
+        })
+
+    # Sort lists by date
+    equity_curve.sort(key=lambda x: x['datetime'])
+    daily_returns_list.sort(key=lambda x: x['datetime'])
+
+    plot_data_json = {
+        "equity_curve": equity_curve,
+        "daily_returns": daily_returns_list
+    }
+
     return {
         "sharpe_ratio": float(sharpe),
         "max_drawdown": float(max_dd),
@@ -380,7 +516,7 @@ def run_backtest(df: pd.DataFrame, fast_ma: int = 10,
             "slow_ma": slow_ma,
             "initial_cash": initial_cash
         },
-        "data_points_used": len(df)
+        "backtest_plot": plot_data_json 
     }
 
 # ==========================================
@@ -431,6 +567,7 @@ async def process_backtest(request_id: UUID, fast_ma: int,
         
     except Exception as e:
         print(f"--- Backtest Failed: {e} ---")
+        traceback.print_exc()
         data_provider.update_status(request_id, 'failed', 'backtest_status')
         data_provider.update_status(request_id, str(e), 'error_log')
 
@@ -693,4 +830,4 @@ async def cleanup_data(request_id: UUID):
 # ==========================================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    uvicorn.run(app, host="0.0.0.0", port=8002) 
