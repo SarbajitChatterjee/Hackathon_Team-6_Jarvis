@@ -8,7 +8,7 @@
 [![Future Pioneers](https://img.shields.io/badge/Future%20Pioneers-Paris%20Edition-blue)](https://www.oddo-bhf.com)
 [![License](https://img.shields.io/badge/License-Proprietary-red)]()
 
-[Live Demo](https://jarvis-oddo.lovable.app/) (*Servers down to save free resources 🚧*) • [White Paper](docs/Team_6_White_Paper_V_1.pdf) • [Technical Docs](High-Level Architecture/Team-6 Jarvis_ High Level Architecture-2026-01-15-155853.png) • [Pitch Deck]()
+[Live Demo](https://jarvis-oddo.lovable.app/) (*Servers down to save free resources 🚧*) • [White Paper](docs/Team_6_White_Paper_V_1.pdf) • [Technical Docs](docs/High-Level Architecture/Team-6 Jarvis_ High Level Architecture-2026-01-15-155853.png) • [Pitch Deck]()
 
 </div>
 
@@ -61,7 +61,7 @@ While traditional asset management struggles with fee compression and informatio
 
 ### High-Level Flow
 <div align="center">
-<img src="High-Level Architecture/Team-6 Jarvis_ High Level Architecture-2026-01-15-155853.png" alt="High Level Architecture" width="800"/>
+<img src="docs/High-Level Architecture/Team-6 Jarvis_ High Level Architecture-2026-01-15-155853.png" alt="High Level Architecture" width="800"/>
 </div>
 
 **4-Phase Workflow:**
@@ -266,7 +266,7 @@ Backtesting, model explainability
 ## 📚 Documentation
 
 - 📄 [White Paper (35 pages)](docs/Team_6_White_Paper_V_1.pdf) - Complete technical + business case
-- 🏗️ [Architecture Diagrams](docs/diagrams/) - High-level, ERD, workflow sequence
+- 🏗️ [Architecture Diagrams](docs/) - High-level, ERD, workflow sequence
 - 📊 [Value Creation Model](docs/Team_6_White_Paper_V_1.pdf#page=29) - Detailed AUM/alpha calculations
 - ⚠️ [Current Limitations](docs/Team_6_White_Paper_V_1.pdf#page=33) - Known constraints + mitigation plans
 
