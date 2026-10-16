@@ -8,7 +8,7 @@
 [![Future Pioneers](https://img.shields.io/badge/Future%20Pioneers-Paris%20Edition-blue)](https://www.oddo-bhf.com)
 [![License](https://img.shields.io/badge/License-Proprietary-red)]()
 
-[Live Demo](#) *Coming Soon 🚧* • [White Paper](docs/Team_6_White_Paper_V_1.pdf) • [Technical Docs](#architecture)
+[Live Demo](https://jarvis-oddo.lovable.app/) (*Servers down to save free resources 🚧*) • [White Paper](docs/Team_6_White_Paper_V_1.pdf) • [Technical Docs](High-Level Architecture/Team-6 Jarvis_ High Level Architecture-2026-01-15-155853.png) • [Pitch Deck]()
 
 </div>
 
