@@ -267,8 +267,8 @@ Backtesting, model explainability
 
 - 📄 [White Paper (35 pages)](docs/Team_6_White_Paper_V_1.pdf) - Complete technical + business case
 - 🏗️ [Architecture Diagrams](docs/) - High-level, ERD, workflow sequence
-- 📊 [Value Creation Model](docs/Team_6_White_Paper_V_1.pdf#page=29) - Detailed AUM/alpha calculations
-- ⚠️ [Current Limitations](docs/Team_6_White_Paper_V_1.pdf#page=33) - Known constraints + mitigation plans
+- 📊 [Value Creation Model (pg 29)](docs/Team_6_White_Paper_V_1.pdf) - Detailed AUM/alpha calculations
+- ⚠️ [Current Limitations (pg 33)](docs/Team_6_White_Paper_V_1.pdf) - Known constraints + mitigation plans
 
 ---
 
