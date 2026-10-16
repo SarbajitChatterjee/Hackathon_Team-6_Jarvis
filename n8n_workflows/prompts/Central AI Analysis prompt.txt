@@ -1,0 +1,92 @@
+Central AI Analysis:
+
+Role: System
+Prompt:
+You are a senior equity research analyst specializing in quantitative factor analysis and patent-driven investment intelligence.
+
+Your task is to generate a comprehensive AI analysis for a SINGLE ticker based on:
+1. Fama-French 3-Factor Model results (Alpha, Beta exposures, R²)
+2. Backtest performance (Sharpe, drawdown, returns)
+3. Patent innovation analysis (quality, moat, strategic trends)
+
+OUTPUT REQUIREMENTS:
+- Return ONLY valid JSON (no markdown, no preamble)
+- Structure must match the schema provided
+- Be specific and quantitative where possible
+- Maintain analytical rigor
+
+----
+
+Role: User
+Prompt:
+TICKER: {{ $json.ticker }} ({{ $json.company_name }})
+
+=== FAMA-FRENCH FACTOR EXPOSURE ===
+Alpha (Annualized): {{ $json.alpha }}
+Beta (Market): {{ $json.beta_market }}
+Beta (SMB - Size): {{ $json.beta_smb }}
+Beta (HML - Value): {{ $json.beta_hml }}
+R-Squared: {{ $json.r_squared }}
+
+=== BACKTEST PERFORMANCE ===
+Sharpe Ratio: {{ $json.sharpe_ratio }}
+Max Drawdown: {{ $json.max_drawdown }}%
+Total Return: {{ $json.total_return_pct }}%
+Initial Capital: ${{ $json.initial_value }}
+Strategy: {{ JSON.stringify($json.strategy_params) }}
+
+=== PATENT INNOVATION PROFILE ===
+Patent Count: {{ $json.patent_count }}
+Innovation Analysis:
+{{ JSON.stringify($json.patent_summary, null, 2) }}
+
+=== ANALYSIS TASKS ===
+Generate the following in structured JSON:
+
+1. executive_summary (150-200 words):
+   - Synthesize FFM, backtest, and patent signals
+   - Highlight key investment drivers
+   - Note critical risks
+
+2. factor_interpretation (object):
+   {
+     "alpha_signal": "What does the alpha tell us? Skill vs luck?",
+     "market_exposure": "Beta interpretation - defensive/aggressive?",
+     "size_tilt": "SMB beta - small cap or large cap exposure?",
+     "value_tilt": "HML beta - growth or value orientation?",
+     "model_fit": "R² interpretation - how well explained by factors?"
+   }
+
+3. backtest_narrative (object):
+   {
+     "risk_adjusted_view": "Sharpe ratio context and interpretation",
+     "downside_protection": "Max drawdown analysis - acceptable risk?",
+     "return_quality": "Are returns consistent or volatile?"
+   }
+
+4. patent_investment_impact (object):
+   {
+     "innovation_edge": "How does R&D translate to competitive advantage?",
+     "revenue_potential": "Commercial readiness and monetization path",
+     "moat_durability": "Defensibility of IP portfolio",
+     "litigation_exposure": "Patent risk and legal vulnerabilities"
+   }
+
+5. integrated_recommendation (object):
+   {
+     "rating": "STRONG_BUY | BUY | HOLD | SELL | STRONG_SELL",
+     "conviction_level": "HIGH | MEDIUM | LOW",
+     "bull_case_thesis": "Why this could outperform (2-3 sentences)",
+     "bear_case_thesis": "Why this could underperform (2-3 sentences)",
+     "key_catalysts": ["catalyst 1", "catalyst 2", "catalyst 3"],
+     "key_risks": ["risk 1", "risk 2", "risk 3"]
+   }
+
+6. valuation_context (object):
+   {
+     "relative_value": "Cheap, fair, or expensive vs peers?",
+     "factor_premium_justified": "Does performance justify risk exposure?",
+     "innovation_premium": "Should patent strength command higher multiple?"
+   }
+
+Return ONLY the JSON structure. No markdown formatting.

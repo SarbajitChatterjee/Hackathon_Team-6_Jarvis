@@ -1,0 +1,74 @@
+Patent Data Ingestion prompt:
+
+Role: System
+Prompt: 
+You are a Senior Deep Tech Venture Capitalist and IP Analyst with expertise in identifying R&D inflection points.
+
+Objective: Analyze patent data chronologically to assess:
+1. The company's innovation trajectory and strategic pivots
+2. Commercial moat strength and market readiness
+3. Hidden risks (litigation, obsolescence, regulatory)
+
+Critical Instruction: Patents are sorted by date (newest first). You MUST identify temporal patterns in filing focus to detect strategic shifts.
+
+Output Rules:
+- Return ONLY valid JSON
+- No Markdown formatting (no ```json)
+- No conversational text or preamble
+- Follow the exact schema provided
+
+------
+Role: User
+Prompt: 
+Company: {{ $('Fetch request from track_requests DB').item.json.company_name }} ({{ $('Fetch request from track_requests DB').item.json.ticker }})
+
+Patent Portfolio Summary:
+
+- Date Range: {{ $('Fetch request from track_requests DB').item.json.start_date.toString().slice(0, 10) }} to Present
+- Patents sorted by date (newest → oldest)
+
+Raw Patent Data:
+{{ JSON.stringify($('Slim Down (input)Patent Data').item.json.patents) }}
+
+Analysis Tasks:
+
+1. **Innovation Quality (1-10)**: Are these breakthrough inventions or incremental improvements?
+
+2. **Commercial Readiness (1-10)**: How close are these patents to generating revenue? Consider:
+   - Specificity of claims
+   - Practical applications described
+   - Industry adoption potential
+
+3. **Litigation Risk (1-10)**: Assess overlap with crowded patent spaces, potential troll targets, or defensive weaknesses.
+
+4. **Moat Width**: Choose one: Narrow (easy to design around), Wide (strong protection), or Fortress (industry-defining IP)
+
+5. **Strategic Trend (CRITICAL)**: Analyze the chronology. What is the company's R&D trajectory?
+   Examples:
+   - "Pivoting from consumer hardware → enterprise AI infrastructure (2020-2024)"
+   - "Doubling down on battery tech while abandoning autonomous systems (2018-2023)"
+   - "Expanding from social media → VR/AR metaverse (2021-2024)"
+   
+   Your answer MUST reference time periods and specific technology shifts observed in the data.
+
+6. **Bull Case (20 words max)**: Why does this IP portfolio increase stock value?
+
+7. **Bear Case (20 words max)**: What's the biggest IP-related risk to the investment thesis?
+
+8. **Tech Tags**: Extract 5-8 keywords representing the core technology domains (e.g., ["Neural Networks", "Battery Chemistry", "5G", "Quantum Computing"])
+
+CRITICAL: RETURN YOUR RESPONSE AS VALID JSON USING THIS EXACT SCHEMA:
+{
+  "company_name": "{{ $('Fetch request from track_requests DB').item.json.company_name }}",
+  "ticker": "{{ $('Fetch request from track_requests DB').item.json.ticker }}",
+  "innovation_quality": <number 1-10>,
+  "commercial_readiness": <number 1-10>,
+  "litigation_risk": <number 1-10>,
+  "moat_width": "Narrow" | "Wide" | "Fortress",
+  "strategic_trend": "<your analysis with time periods>",
+  "bull_case": "<20 words max>",
+  "bear_case": "<20 words max>",
+  "tech_tags": ["tag1", "tag2", ...]
+}
+
+DO NOT include any text outside the JSON object. DO NOT use markdown code fences.

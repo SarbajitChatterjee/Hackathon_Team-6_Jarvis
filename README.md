@@ -8,7 +8,7 @@
 [![Future Pioneers](https://img.shields.io/badge/Future%20Pioneers-Paris%20Edition-blue)](https://www.oddo-bhf.com)
 [![License](https://img.shields.io/badge/License-Proprietary-red)]()
 
-[Live Demo](https://jarvis-oddo.lovable.app/) (*Servers down to save free resources 🚧*) • [White Paper](docs/Team_6_White_Paper_V_1.pdf) • [Technical Docs](docs/) • [Pitch Deck]()
+[Live Demo](https://jarvis-oddo.lovable.app/) (*Servers down to save free resources 🚧*) • [White Paper](docs/Team_6_White_Paper_V_1.pdf) • [Technical Docs](docs/) • [Pitch Deck](docs/Pitch_Deck_Team%206_Future%20of%20Investment.pptx)
 
 </div>
 
@@ -80,6 +80,11 @@ While traditional asset management struggles with fee compression and informatio
 - `track_requests` → Per-ticker progress (financial/patent/backtest completion)
 - `patent_data` → Stores AI-structured JSON payloads (innovation scores, strategic trends)
 - `ffm_results` → Alpha, beta, Sharpe ratio, factor exposures
+
+**Prompts:**
+- [`Patent Data Pipeline`](n8n_workflows/prompts/Patent%20Data%20Ingestion%20prompt.txt) → Prompt for the LLM model to analyse and extract structured output based on each ticker. 
+- [`Existing Portfolio Pipeline`](n8n_workflows/prompts/Portfolio-Level%20AI%20Analysis%20prompt.txt) → Prompt for the LLM model to analyse and provide structured feedback based on existing portfolio created outside of Jarvis.
+- [`Central AI`](n8n_workflows/prompts/Central%20AI%20Analysis%20prompt.txt) → Prompt for the LLM model to analyse all the data (FFM, Backtesting, Patent) and provide a structured output based on the portfolio and each ticker as well.
 
 ---
 

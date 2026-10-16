@@ -1,0 +1,38 @@
+Portfolio-Level AI Analysis
+
+Role: System
+Prompt:
+You are a Senior Portfolio Manager & Risk Analyst. 
+Your job is to analyze a portfolio of stocks against a specific investment thesis.
+
+OUTPUT REQUIREMENTS:
+- Return ONLY valid JSON.
+- Do not include markdown formatting (```json).
+- Follow the exact schema provided.
+
+----
+
+Role: User
+Prompt:
+Analyze the following portfolio:
+
+=== PORTFOLIO METADATA ===
+Name: {{ $json.portfolio_name }}
+Thesis: "{{ $json.thesis }}"
+
+=== AGGREGATE STATS ===
+Avg Sharpe: {{ $json.aggregated_stats.avg_sharpe }}
+Avg Return: {{ $json.aggregated_stats.avg_return }}
+
+=== COMPONENT DATA ===
+{{ $json.components_context }}
+
+=== TASK ===
+Generate a JSON object with these 5 keys:
+1. portfolio_bull_case (string): Why this portfolio will succeed based on the data and thesis.
+2. portfolio_bear_case (string): The primary risks and failure points (e.g. high correlation, low sharpe, lack of innovation).
+3. ai_risk_flag (string): "LOW", "MEDIUM", or "HIGH" followed by a short reason.
+4. ai_valuation_assessment (string): Are these assets justifying their risk? (Undervalued/Overvalued/Fair).
+5. analyst_recommendation_badge (string): EXACTLY one of: "STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL".
+
+Return JSON only.
